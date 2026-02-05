@@ -6,3 +6,62 @@ generator client {
 datasource db {
   provider = "postgresql"
 }
+
+// Definición del Modelo de Usuario
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  password  String
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  // Relación: Un usuario puede crear muchos eventos
+  events    Event[]
+}
+
+// Definición del Modelo de Evento
+model Event {
+  id          String   @id @default(uuid())
+  userId      String
+  title       String
+  description String
+  date        DateTime
+  time        String
+  location    String
+  imageUrl    String
+  slug        String   @unique
+  createdBy   String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relaciones
+  user          User           @relation(fields: [userId], references: [id])
+  attendances   Attendance[]
+  confirmations Confirmation[]
+}
+
+// Definición del Modelo de Asistencia
+model Attendance {
+  id             String   @id @default(uuid())
+  eventId        String
+  guestName      String
+  guestEmail     String
+  numberOfGuests Int
+  confirmedAt    DateTime @default(now())
+
+  // Relaciones
+  event         Event          @relation(fields: [eventId], references: [id])
+  confirmations Confirmation[]
+}
+
+// Definición del Modelo de Confirmación
+model Confirmation {
+  id           String @id @default(uuid())
+  eventId      String
+  attendanceId String
+
+  // Relaciones
+  event      Event      @relation(fields: [eventId], references: [id])
+  attendance Attendance @relation(fields: [attendanceId], references: [id])
+}
