@@ -178,3 +178,94 @@ export async function getEventBySlug(slug: string) {
     };
   }
 }
+
+/** Para la página pública: evento + cantidad de asistencias confirmadas */
+export async function getEventBySlugWithAttendanceCount(slug: string) {
+  try {
+    const event = await prisma.event.findUnique({
+      where: { slug },
+      include: {
+        _count: { select: { attendances: true } },
+      },
+    });
+    if (!event) return { success: true, data: null };
+    const attendanceCount = event._count.attendances;
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars -- omit _count from returned event
+    const { _count, ...eventData } = event;
+    return {
+      success: true,
+      data: { event: eventData, attendanceCount },
+    };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    const isConnectionError =
+      message.includes("Can't reach") ||
+      message.includes("connection") ||
+      message.includes("ECONNREFUSED") ||
+      message.includes("connect");
+    console.error("Error fetching event by slug:", error);
+    if (isConnectionError) {
+      console.error(
+        "Comprueba que PostgreSQL esté en ejecución y que DATABASE_URL en .env sea correcta (ej: postgresql://usuario:contraseña@localhost:5432/nombre_bd)"
+      );
+    }
+    return {
+      success: false,
+      error: isConnectionError
+        ? "No se puede conectar a la base de datos. Comprueba que PostgreSQL esté en ejecución y DATABASE_URL en .env."
+        : message,
+    };
+  }
+}
+
+export interface ConfirmAttendanceInput {
+  guestName: string;
+  guestEmail: string;
+  numberOfGuests?: number;
+}
+
+/** Confirmar asistencia desde la URL pública del evento */
+export async function confirmAttendance(slug: string, data: ConfirmAttendanceInput) {
+  try {
+    const event = await prisma.event.findUnique({
+      where: { slug },
+    });
+    if (!event) {
+      return { success: false, error: "Evento no encontrado." };
+    }
+
+    const numGuests = Math.max(1, Math.min(Number(data.numberOfGuests) || 1, 50));
+    const name = data.guestName?.trim();
+    const email = data.guestEmail?.trim().toLowerCase();
+
+    if (!name || name.length < 2) {
+      return { success: false, error: "El nombre debe tener al menos 2 caracteres." };
+    }
+    if (!email) {
+      return { success: false, error: "El correo electrónico es obligatorio." };
+    }
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      return { success: false, error: "Introduce un correo electrónico válido." };
+    }
+
+    await prisma.attendance.create({
+      data: {
+        eventId: event.id,
+        guestName: name,
+        guestEmail: email,
+        numberOfGuests: numGuests,
+      },
+    });
+
+    revalidatePath(`/event/${slug}`);
+    return { success: true };
+  } catch (error) {
+    console.error("Error confirming attendance:", error);
+    return {
+      success: false,
+      error:
+        error instanceof Error ? error.message : "Error al confirmar la asistencia.",
+    };
+  }
+}
