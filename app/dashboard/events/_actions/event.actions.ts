@@ -1,10 +1,9 @@
 "use server";
 
 import prisma from "@/app/lib/prisma";
+import { auth } from "@/lib/auth";
+import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
-
-// Usuario por defecto para demos (sin auth)
-const DEFAULT_USER_EMAIL = "demo@sistemaeventos.com";
 
 function generateSlug(title: string): string {
   const base = title
@@ -16,22 +15,16 @@ function generateSlug(title: string): string {
   return `${base}-${Date.now()}`;
 }
 
-async function getOrCreateDefaultUser() {
-  let user = await prisma.user.findFirst({
-    where: { email: DEFAULT_USER_EMAIL },
+async function getAuthenticatedUser() {
+  const session = await auth.api.getSession({
+    headers: await headers(),
   });
 
-  if (!user) {
-    user = await prisma.user.create({
-      data: {
-        email: DEFAULT_USER_EMAIL,
-        password: "demo-password-hash",
-        name: "Usuario Demo",
-      },
-    });
+  if (!session) {
+    throw new Error("No autenticado");
   }
 
-  return user;
+  return session.user;
 }
 
 export interface CreateEventInput {
@@ -41,7 +34,6 @@ export interface CreateEventInput {
   time: string;
   location: string;
   imageUrl: string;
-  createdBy?: string;
 }
 
 export interface UpdateEventInput extends CreateEventInput {
@@ -50,8 +42,7 @@ export interface UpdateEventInput extends CreateEventInput {
 
 export async function createEvent(data: CreateEventInput) {
   try {
-    const user = await getOrCreateDefaultUser();
-
+    const user = await getAuthenticatedUser();
     const slug = generateSlug(data.title);
 
     const event = await prisma.event.create({
@@ -64,11 +55,12 @@ export async function createEvent(data: CreateEventInput) {
         location: data.location,
         imageUrl: data.imageUrl || "",
         slug,
-        createdBy: data.createdBy ?? user.name,
+        createdBy: user.name,
       },
     });
 
     revalidatePath("/dashboard/events");
+    revalidatePath("/dashboard");
     return { success: true, data: event };
   } catch (error) {
     console.error("Error creating event:", error);
@@ -105,6 +97,7 @@ export async function getEvents() {
 
 export async function updateEvent(data: UpdateEventInput) {
   try {
+    await getAuthenticatedUser();
     const { id, ...rest } = data;
     const slug = generateSlug(rest.title);
 
@@ -118,6 +111,7 @@ export async function updateEvent(data: UpdateEventInput) {
     });
 
     revalidatePath("/dashboard/events");
+    revalidatePath("/dashboard");
     return { success: true, data: event };
   } catch (error) {
     console.error("Error updating event:", error);
@@ -131,11 +125,17 @@ export async function updateEvent(data: UpdateEventInput) {
 
 export async function deleteEvent(id: string) {
   try {
+    await getAuthenticatedUser();
+
+    await prisma.confirmation.deleteMany({ where: { eventId: id } });
+    await prisma.attendance.deleteMany({ where: { eventId: id } });
+
     await prisma.event.delete({
       where: { id },
     });
 
     revalidatePath("/dashboard/events");
+    revalidatePath("/dashboard");
     return { success: true };
   } catch (error) {
     console.error("Error deleting event:", error);
@@ -179,7 +179,6 @@ export async function getEventBySlug(slug: string) {
   }
 }
 
-/** Para la página pública: evento + cantidad de asistencias confirmadas */
 export async function getEventBySlugWithAttendanceCount(slug: string) {
   try {
     const event = await prisma.event.findUnique({
@@ -190,8 +189,8 @@ export async function getEventBySlugWithAttendanceCount(slug: string) {
     });
     if (!event) return { success: true, data: null };
     const attendanceCount = event._count.attendances;
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars -- omit _count from returned event
     const { _count, ...eventData } = event;
+    void _count;
     return {
       success: true,
       data: { event: eventData, attendanceCount },
@@ -204,11 +203,6 @@ export async function getEventBySlugWithAttendanceCount(slug: string) {
       message.includes("ECONNREFUSED") ||
       message.includes("connect");
     console.error("Error fetching event by slug:", error);
-    if (isConnectionError) {
-      console.error(
-        "Comprueba que PostgreSQL esté en ejecución y que DATABASE_URL en .env sea correcta (ej: postgresql://usuario:contraseña@localhost:5432/nombre_bd)"
-      );
-    }
     return {
       success: false,
       error: isConnectionError
@@ -224,7 +218,6 @@ export interface ConfirmAttendanceInput {
   numberOfGuests?: number;
 }
 
-/** Confirmar asistencia desde la URL pública del evento */
 export async function confirmAttendance(slug: string, data: ConfirmAttendanceInput) {
   try {
     const event = await prisma.event.findUnique({

@@ -37,7 +37,7 @@ export default function Home() {
           </p>
           <div className="flex flex-col sm:flex-row flex-wrap items-stretch sm:items-center justify-center gap-3 sm:gap-4 pt-2 sm:pt-4">
             <Button size="lg" className="w-full sm:w-auto min-h-11" asChild>
-              <Link href="/dashboard/events">Ir a eventos</Link>
+              <Link href="/dashboard">Ir al dashboard</Link>
             </Button>
             <Button size="lg" variant="outline" className="w-full sm:w-auto min-h-11" asChild>
               <Link href="/register">Crear cuenta</Link>

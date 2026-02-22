@@ -7,20 +7,59 @@ datasource db {
   provider = "postgresql"
 }
 
-// Definición del Modelo de Usuario
 model User {
-  id        String   @id @default(uuid())
-  email     String   @unique
-  password  String
-  name      String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  
-  // Relación: Un usuario puede crear muchos eventos
-  events    Event[]
+  id            String    @id
+  name          String
+  email         String    @unique
+  emailVerified Boolean   @default(false)
+  image         String?
+  role          String    @default("user")
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  sessions Session[]
+  accounts Account[]
+  events   Event[]
 }
 
-// Definición del Modelo de Evento
+model Session {
+  id        String   @id
+  expiresAt DateTime
+  token     String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  ipAddress String?
+  userAgent String?
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Account {
+  id                    String    @id
+  accountId             String
+  providerId            String
+  userId                String
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  password              String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Verification {
+  id         String   @id
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
 model Event {
   id          String   @id @default(uuid())
   userId      String
@@ -35,13 +74,11 @@ model Event {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  // Relaciones
   user          User           @relation(fields: [userId], references: [id])
   attendances   Attendance[]
   confirmations Confirmation[]
 }
 
-// Definición del Modelo de Asistencia
 model Attendance {
   id             String   @id @default(uuid())
   eventId        String
@@ -50,18 +87,15 @@ model Attendance {
   numberOfGuests Int
   confirmedAt    DateTime @default(now())
 
-  // Relaciones
-  event         Event          @relation(fields: [eventId], references: [id])
+  event         Event          @relation(fields: [eventId], references: [id], onDelete: Cascade)
   confirmations Confirmation[]
 }
 
-// Definición del Modelo de Confirmación
 model Confirmation {
   id           String @id @default(uuid())
   eventId      String
   attendanceId String
 
-  // Relaciones
-  event      Event      @relation(fields: [eventId], references: [id])
-  attendance Attendance @relation(fields: [attendanceId], references: [id])
+  event      Event      @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  attendance Attendance @relation(fields: [attendanceId], references: [id], onDelete: Cascade)
 }

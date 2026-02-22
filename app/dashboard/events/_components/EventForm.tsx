@@ -11,7 +11,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { createEvent, updateEvent, type CreateEventInput } from "../_actions/event.actions";
+import { createEvent, updateEvent } from "../_actions/event.actions";
 import type { Event } from "@/app/generated/prisma/client";
 import { cn } from "@/lib/utils";
 import {
@@ -37,17 +37,25 @@ interface EventFormProps {
   formIdPrefix?: string;
 }
 
-const emptyForm: CreateEventInput = {
+interface FormData {
+  title: string;
+  description: string;
+  date: string;
+  time: string;
+  location: string;
+  imageUrl: string;
+}
+
+const emptyForm: FormData = {
   title: "",
   description: "",
   date: "",
   time: "",
   location: "",
   imageUrl: "",
-  createdBy: "Usuario Demo",
 };
 
-function eventToFormData(event: Event): CreateEventInput {
+function eventToFormData(event: Event): FormData {
   const d = new Date(event.date);
   const dateStr = d.toISOString().split("T")[0];
   return {
@@ -57,7 +65,6 @@ function eventToFormData(event: Event): CreateEventInput {
     time: event.time,
     location: event.location,
     imageUrl: event.imageUrl ?? "",
-    createdBy: event.createdBy,
   };
 }
 
@@ -66,7 +73,7 @@ const id = (prefix: string, name: string) => (prefix ? `${prefix}-${name}` : nam
 export function EventForm({ event, onSuccess, onCancel, variant = "card", formIdPrefix = "" }: EventFormProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [formData, setFormData] = useState<CreateEventInput>(() =>
+  const [formData, setFormData] = useState<FormData>(() =>
     event ? eventToFormData(event) : { ...emptyForm }
   );
 
@@ -82,7 +89,7 @@ export function EventForm({ event, onSuccess, onCancel, variant = "card", formId
     setError(null);
   }, [event?.id]);
 
-  const handleChange = (field: keyof CreateEventInput, value: string) => {
+  const handleChange = (field: keyof FormData, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
     setError(null);
   };
