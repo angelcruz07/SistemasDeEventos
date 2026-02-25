@@ -14,6 +14,7 @@
     "@types/pg": "^8.16.0",
     "better-auth": "^1.4.18",
     "class-variance-authority": "^0.7.1",
+    "cloudinary": "^2.9.0",
     "clsx": "^2.1.1",
     "dotenv": "^17.2.3",
     "lucide-react": "^0.563.0",

@@ -1038,7 +1038,8 @@ export const EventScalarFieldEnum = {
   slug: 'slug',
   createdBy: 'createdBy',
   createdAt: 'createdAt',
-  updatedAt: 'updatedAt'
+  updatedAt: 'updatedAt',
+  isCancelled: 'isCancelled'
 } as const
 
 export type EventScalarFieldEnum = (typeof EventScalarFieldEnum)[keyof typeof EventScalarFieldEnum]
@@ -1050,6 +1051,7 @@ export const AttendanceScalarFieldEnum = {
   guestName: 'guestName',
   guestEmail: 'guestEmail',
   numberOfGuests: 'numberOfGuests',
+  responseType: 'responseType',
   confirmedAt: 'confirmedAt'
 } as const
 

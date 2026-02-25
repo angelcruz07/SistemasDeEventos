@@ -38,11 +38,29 @@ export interface CreateEventInput {
 
 export interface UpdateEventInput extends CreateEventInput {
   id: string;
+  isCancelled?: boolean;
+}
+
+function isEventDateTimeInPast(dateStr: string, timeStr: string): boolean {
+  if (!dateStr?.trim() || !timeStr?.trim()) return false;
+  const [y, m, d] = dateStr.trim().split("-").map(Number);
+  const [h, min] = timeStr.trim().split(":").map(Number);
+  if ([y, m, d, h, min].some((n) => Number.isNaN(n))) return false;
+  const eventDate = new Date(y, m - 1, d, h, min, 0, 0);
+  return Number.isNaN(eventDate.getTime()) || eventDate.getTime() <= Date.now();
 }
 
 export async function createEvent(data: CreateEventInput) {
   try {
     const user = await getAuthenticatedUser();
+
+    if (isEventDateTimeInPast(data.date, data.time)) {
+      return {
+        success: false,
+        error: "No puedes crear un evento con fecha u hora pasada. Elige una fecha y hora futuras.",
+      };
+    }
+
     const slug = generateSlug(data.title);
 
     const event = await prisma.event.create({
@@ -98,7 +116,13 @@ export async function getEvents() {
 export async function updateEvent(data: UpdateEventInput) {
   try {
     await getAuthenticatedUser();
-    const { id, ...rest } = data;
+    if (isEventDateTimeInPast(data.date, data.time)) {
+      return {
+        success: false,
+        error: "No puedes usar una fecha u hora pasada. Elige una fecha y hora futuras.",
+      };
+    }
+    const { id, isCancelled, ...rest } = data;
     const slug = generateSlug(rest.title);
 
     const event = await prisma.event.update({
@@ -107,6 +131,7 @@ export async function updateEvent(data: UpdateEventInput) {
         ...rest,
         date: new Date(rest.date),
         slug,
+        ...(typeof isCancelled === "boolean" && { isCancelled }),
       },
     });
 
@@ -163,6 +188,51 @@ export async function getEventById(id: string) {
   }
 }
 
+export type AttendanceForEvent = {
+  id: string;
+  guestName: string;
+  guestEmail: string;
+  numberOfGuests: number;
+  responseType: string;
+  confirmedAt: Date;
+};
+
+export async function getAttendancesForEvent(eventId: string) {
+  try {
+    const user = await getAuthenticatedUser();
+    const event = await prisma.event.findUnique({
+      where: { id: eventId },
+      select: { userId: true, title: true },
+    });
+    if (!event) {
+      return { success: false, error: "Evento no encontrado." };
+    }
+    if (event.userId !== user.id) {
+      return { success: false, error: "No tienes permiso para ver los asistentes de este evento." };
+    }
+    const attendances = await prisma.attendance.findMany({
+      where: { eventId },
+      orderBy: { confirmedAt: "desc" },
+      select: {
+        id: true,
+        guestName: true,
+        guestEmail: true,
+        numberOfGuests: true,
+        responseType: true,
+        confirmedAt: true,
+      },
+    });
+    return { success: true, data: { eventTitle: event.title, attendances } };
+  } catch (error) {
+    console.error("Error fetching attendances:", error);
+    return {
+      success: false,
+      error:
+        error instanceof Error ? error.message : "Error al obtener los asistentes",
+    };
+  }
+}
+
 export async function getEventBySlug(slug: string) {
   try {
     const event = await prisma.event.findUnique({
@@ -212,10 +282,13 @@ export async function getEventBySlugWithAttendanceCount(slug: string) {
   }
 }
 
+export type AttendanceResponseType = "confirmed" | "maybe" | "declined";
+
 export interface ConfirmAttendanceInput {
   guestName: string;
   guestEmail: string;
   numberOfGuests?: number;
+  responseType?: AttendanceResponseType;
 }
 
 export async function confirmAttendance(slug: string, data: ConfirmAttendanceInput) {
@@ -230,6 +303,12 @@ export async function confirmAttendance(slug: string, data: ConfirmAttendanceInp
     const numGuests = Math.max(1, Math.min(Number(data.numberOfGuests) || 1, 50));
     const name = data.guestName?.trim();
     const email = data.guestEmail?.trim().toLowerCase();
+    const responseType =
+      data.responseType === "maybe"
+        ? "maybe"
+        : data.responseType === "declined"
+          ? "declined"
+          : "confirmed";
 
     if (!name || name.length < 2) {
       return { success: false, error: "El nombre debe tener al menos 2 caracteres." };
@@ -248,6 +327,7 @@ export async function confirmAttendance(slug: string, data: ConfirmAttendanceInp
         guestName: name,
         guestEmail: email,
         numberOfGuests: numGuests,
+        responseType,
       },
     });
 

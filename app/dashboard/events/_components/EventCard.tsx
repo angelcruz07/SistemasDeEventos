@@ -3,15 +3,57 @@
 import Link from "next/link";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Calendar, MapPin, Clock, Pencil, Trash2, QrCode } from "lucide-react";
+import { Calendar, MapPin, Clock, Pencil, Trash2, QrCode, Users } from "lucide-react";
 import Image from "next/image";
+import { cn } from "@/lib/utils";
 import type { Event } from "@/app/generated/prisma/client";
 
 interface EventCardProps {
   event: Event;
   onEdit: (event: Event) => void;
   onDelete: (event: Event) => void;
+  onViewAttendees?: (event: Event) => void;
 }
+
+type EventStatus = "cancelado" | "finalizado" | "próximo";
+
+/** Obtiene la fecha/hora del evento combinando date y time (formato "HH:mm"). */
+function getEventDateTime(event: Event): Date | null {
+  const d = new Date(event.date);
+  const timeStr = (event.time ?? "").trim();
+  if (!timeStr) return d;
+  const parts = timeStr.split(":").map(Number);
+  if (parts.length < 2 || parts.some(Number.isNaN)) return d;
+  const [hours, minutes] = parts;
+  const combined = new Date(d.getFullYear(), d.getMonth(), d.getDate(), hours, minutes ?? 0, 0, 0);
+  return Number.isNaN(combined.getTime()) ? d : combined;
+}
+
+function getEventStatus(event: Event): EventStatus {
+  const eventWithCancelled = event as Event & { isCancelled?: boolean };
+  if (eventWithCancelled.isCancelled === true) return "cancelado";
+  const eventDt = getEventDateTime(event);
+  if (!eventDt) return "próximo";
+  return eventDt.getTime() < Date.now() ? "finalizado" : "próximo";
+}
+
+const statusConfig: Record<
+  EventStatus,
+  { label: string; className: string }
+> = {
+  cancelado: {
+    label: "Cancelado",
+    className: "bg-red-100 text-red-800 dark:bg-red-950/60 dark:text-red-300",
+  },
+  finalizado: {
+    label: "Finalizado",
+    className: "bg-gray-200 text-gray-800 dark:bg-gray-800 dark:text-gray-300",
+  },
+  próximo: {
+    label: "Próximo",
+    className: "bg-green-100 text-green-800 dark:bg-green-950/50 dark:text-green-300",
+  },
+};
 
 function formatDate(date: Date): string {
   return new Date(date).toLocaleDateString("es-ES", {
@@ -21,13 +63,15 @@ function formatDate(date: Date): string {
   });
 }
 
-export function EventCard({ event, onEdit, onDelete }: EventCardProps) {
+export function EventCard({ event, onEdit, onDelete, onViewAttendees }: EventCardProps) {
   const imageUrl = event.imageUrl?.trim();
   const hasValidImage = imageUrl && (imageUrl.startsWith("http://") || imageUrl.startsWith("https://"));
+  const status = getEventStatus(event);
+  const { label: statusLabel, className: statusClassName } = statusConfig[status];
 
   return (
     <Card className="overflow-hidden transition-shadow hover:shadow-md flex flex-col min-w-0">
-      <div className="aspect-video bg-muted flex items-center justify-center overflow-hidden shrink-0">
+      <div className="relative aspect-video bg-muted flex items-center justify-center overflow-hidden shrink-0">
         {hasValidImage ? (
           <Image
             src={imageUrl}
@@ -39,6 +83,14 @@ export function EventCard({ event, onEdit, onDelete }: EventCardProps) {
         ) : (
           <Calendar className="size-10 sm:size-12 text-muted-foreground/50" />
         )}
+        <span
+          className={cn(
+            "absolute top-2 right-2 rounded-full px-2.5 py-0.5 text-xs font-medium shadow-sm",
+            statusClassName
+          )}
+        >
+          {statusLabel}
+        </span>
       </div>
       <CardHeader className="pb-2 px-4 sm:px-6 pt-3 sm:pt-4">
         <CardTitle className="text-sm sm:text-base line-clamp-2">{event.title}</CardTitle>
@@ -65,6 +117,12 @@ export function EventCard({ event, onEdit, onDelete }: EventCardProps) {
             <span className="truncate">Ver página / QR</span>
           </Link>
         </Button>
+        {onViewAttendees && (
+          <Button variant="outline" size="sm" className="w-full sm:w-auto min-h-9 shrink-0" onClick={() => onViewAttendees(event)}>
+            <Users className="size-4 mr-1 shrink-0" />
+            Ver asistentes
+          </Button>
+        )}
         <Button variant="outline" size="sm" className="w-full sm:w-auto min-h-9 shrink-0" onClick={() => onEdit(event)}>
           <Pencil className="size-4 mr-1 shrink-0" />
           Editar

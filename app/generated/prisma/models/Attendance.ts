@@ -40,6 +40,7 @@ export type AttendanceMinAggregateOutputType = {
   guestName: string | null
   guestEmail: string | null
   numberOfGuests: number | null
+  responseType: string | null
   confirmedAt: Date | null
 }
 
@@ -49,6 +50,7 @@ export type AttendanceMaxAggregateOutputType = {
   guestName: string | null
   guestEmail: string | null
   numberOfGuests: number | null
+  responseType: string | null
   confirmedAt: Date | null
 }
 
@@ -58,6 +60,7 @@ export type AttendanceCountAggregateOutputType = {
   guestName: number
   guestEmail: number
   numberOfGuests: number
+  responseType: number
   confirmedAt: number
   _all: number
 }
@@ -77,6 +80,7 @@ export type AttendanceMinAggregateInputType = {
   guestName?: true
   guestEmail?: true
   numberOfGuests?: true
+  responseType?: true
   confirmedAt?: true
 }
 
@@ -86,6 +90,7 @@ export type AttendanceMaxAggregateInputType = {
   guestName?: true
   guestEmail?: true
   numberOfGuests?: true
+  responseType?: true
   confirmedAt?: true
 }
 
@@ -95,6 +100,7 @@ export type AttendanceCountAggregateInputType = {
   guestName?: true
   guestEmail?: true
   numberOfGuests?: true
+  responseType?: true
   confirmedAt?: true
   _all?: true
 }
@@ -191,6 +197,7 @@ export type AttendanceGroupByOutputType = {
   guestName: string
   guestEmail: string
   numberOfGuests: number
+  responseType: string
   confirmedAt: Date
   _count: AttendanceCountAggregateOutputType | null
   _avg: AttendanceAvgAggregateOutputType | null
@@ -223,6 +230,7 @@ export type AttendanceWhereInput = {
   guestName?: Prisma.StringFilter<"Attendance"> | string
   guestEmail?: Prisma.StringFilter<"Attendance"> | string
   numberOfGuests?: Prisma.IntFilter<"Attendance"> | number
+  responseType?: Prisma.StringFilter<"Attendance"> | string
   confirmedAt?: Prisma.DateTimeFilter<"Attendance"> | Date | string
   event?: Prisma.XOR<Prisma.EventScalarRelationFilter, Prisma.EventWhereInput>
   confirmations?: Prisma.ConfirmationListRelationFilter
@@ -234,6 +242,7 @@ export type AttendanceOrderByWithRelationInput = {
   guestName?: Prisma.SortOrder
   guestEmail?: Prisma.SortOrder
   numberOfGuests?: Prisma.SortOrder
+  responseType?: Prisma.SortOrder
   confirmedAt?: Prisma.SortOrder
   event?: Prisma.EventOrderByWithRelationInput
   confirmations?: Prisma.ConfirmationOrderByRelationAggregateInput
@@ -248,6 +257,7 @@ export type AttendanceWhereUniqueInput = Prisma.AtLeast<{
   guestName?: Prisma.StringFilter<"Attendance"> | string
   guestEmail?: Prisma.StringFilter<"Attendance"> | string
   numberOfGuests?: Prisma.IntFilter<"Attendance"> | number
+  responseType?: Prisma.StringFilter<"Attendance"> | string
   confirmedAt?: Prisma.DateTimeFilter<"Attendance"> | Date | string
   event?: Prisma.XOR<Prisma.EventScalarRelationFilter, Prisma.EventWhereInput>
   confirmations?: Prisma.ConfirmationListRelationFilter
@@ -259,6 +269,7 @@ export type AttendanceOrderByWithAggregationInput = {
   guestName?: Prisma.SortOrder
   guestEmail?: Prisma.SortOrder
   numberOfGuests?: Prisma.SortOrder
+  responseType?: Prisma.SortOrder
   confirmedAt?: Prisma.SortOrder
   _count?: Prisma.AttendanceCountOrderByAggregateInput
   _avg?: Prisma.AttendanceAvgOrderByAggregateInput
@@ -276,6 +287,7 @@ export type AttendanceScalarWhereWithAggregatesInput = {
   guestName?: Prisma.StringWithAggregatesFilter<"Attendance"> | string
   guestEmail?: Prisma.StringWithAggregatesFilter<"Attendance"> | string
   numberOfGuests?: Prisma.IntWithAggregatesFilter<"Attendance"> | number
+  responseType?: Prisma.StringWithAggregatesFilter<"Attendance"> | string
   confirmedAt?: Prisma.DateTimeWithAggregatesFilter<"Attendance"> | Date | string
 }
 
@@ -284,6 +296,7 @@ export type AttendanceCreateInput = {
   guestName: string
   guestEmail: string
   numberOfGuests: number
+  responseType?: string
   confirmedAt?: Date | string
   event: Prisma.EventCreateNestedOneWithoutAttendancesInput
   confirmations?: Prisma.ConfirmationCreateNestedManyWithoutAttendanceInput
@@ -295,6 +308,7 @@ export type AttendanceUncheckedCreateInput = {
   guestName: string
   guestEmail: string
   numberOfGuests: number
+  responseType?: string
   confirmedAt?: Date | string
   confirmations?: Prisma.ConfirmationUncheckedCreateNestedManyWithoutAttendanceInput
 }
@@ -304,6 +318,7 @@ export type AttendanceUpdateInput = {
   guestName?: Prisma.StringFieldUpdateOperationsInput | string
   guestEmail?: Prisma.StringFieldUpdateOperationsInput | string
   numberOfGuests?: Prisma.IntFieldUpdateOperationsInput | number
+  responseType?: Prisma.StringFieldUpdateOperationsInput | string
   confirmedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   event?: Prisma.EventUpdateOneRequiredWithoutAttendancesNestedInput
   confirmations?: Prisma.ConfirmationUpdateManyWithoutAttendanceNestedInput
@@ -315,6 +330,7 @@ export type AttendanceUncheckedUpdateInput = {
   guestName?: Prisma.StringFieldUpdateOperationsInput | string
   guestEmail?: Prisma.StringFieldUpdateOperationsInput | string
   numberOfGuests?: Prisma.IntFieldUpdateOperationsInput | number
+  responseType?: Prisma.StringFieldUpdateOperationsInput | string
   confirmedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   confirmations?: Prisma.ConfirmationUncheckedUpdateManyWithoutAttendanceNestedInput
 }
@@ -325,6 +341,7 @@ export type AttendanceCreateManyInput = {
   guestName: string
   guestEmail: string
   numberOfGuests: number
+  responseType?: string
   confirmedAt?: Date | string
 }
 
@@ -333,6 +350,7 @@ export type AttendanceUpdateManyMutationInput = {
   guestName?: Prisma.StringFieldUpdateOperationsInput | string
   guestEmail?: Prisma.StringFieldUpdateOperationsInput | string
   numberOfGuests?: Prisma.IntFieldUpdateOperationsInput | number
+  responseType?: Prisma.StringFieldUpdateOperationsInput | string
   confirmedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
 
@@ -342,6 +360,7 @@ export type AttendanceUncheckedUpdateManyInput = {
   guestName?: Prisma.StringFieldUpdateOperationsInput | string
   guestEmail?: Prisma.StringFieldUpdateOperationsInput | string
   numberOfGuests?: Prisma.IntFieldUpdateOperationsInput | number
+  responseType?: Prisma.StringFieldUpdateOperationsInput | string
   confirmedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
 
@@ -361,6 +380,7 @@ export type AttendanceCountOrderByAggregateInput = {
   guestName?: Prisma.SortOrder
   guestEmail?: Prisma.SortOrder
   numberOfGuests?: Prisma.SortOrder
+  responseType?: Prisma.SortOrder
   confirmedAt?: Prisma.SortOrder
 }
 
@@ -374,6 +394,7 @@ export type AttendanceMaxOrderByAggregateInput = {
   guestName?: Prisma.SortOrder
   guestEmail?: Prisma.SortOrder
   numberOfGuests?: Prisma.SortOrder
+  responseType?: Prisma.SortOrder
   confirmedAt?: Prisma.SortOrder
 }
 
@@ -383,6 +404,7 @@ export type AttendanceMinOrderByAggregateInput = {
   guestName?: Prisma.SortOrder
   guestEmail?: Prisma.SortOrder
   numberOfGuests?: Prisma.SortOrder
+  responseType?: Prisma.SortOrder
   confirmedAt?: Prisma.SortOrder
 }
 
@@ -464,6 +486,7 @@ export type AttendanceCreateWithoutEventInput = {
   guestName: string
   guestEmail: string
   numberOfGuests: number
+  responseType?: string
   confirmedAt?: Date | string
   confirmations?: Prisma.ConfirmationCreateNestedManyWithoutAttendanceInput
 }
@@ -473,6 +496,7 @@ export type AttendanceUncheckedCreateWithoutEventInput = {
   guestName: string
   guestEmail: string
   numberOfGuests: number
+  responseType?: string
   confirmedAt?: Date | string
   confirmations?: Prisma.ConfirmationUncheckedCreateNestedManyWithoutAttendanceInput
 }
@@ -512,6 +536,7 @@ export type AttendanceScalarWhereInput = {
   guestName?: Prisma.StringFilter<"Attendance"> | string
   guestEmail?: Prisma.StringFilter<"Attendance"> | string
   numberOfGuests?: Prisma.IntFilter<"Attendance"> | number
+  responseType?: Prisma.StringFilter<"Attendance"> | string
   confirmedAt?: Prisma.DateTimeFilter<"Attendance"> | Date | string
 }
 
@@ -520,6 +545,7 @@ export type AttendanceCreateWithoutConfirmationsInput = {
   guestName: string
   guestEmail: string
   numberOfGuests: number
+  responseType?: string
   confirmedAt?: Date | string
   event: Prisma.EventCreateNestedOneWithoutAttendancesInput
 }
@@ -530,6 +556,7 @@ export type AttendanceUncheckedCreateWithoutConfirmationsInput = {
   guestName: string
   guestEmail: string
   numberOfGuests: number
+  responseType?: string
   confirmedAt?: Date | string
 }
 
@@ -554,6 +581,7 @@ export type AttendanceUpdateWithoutConfirmationsInput = {
   guestName?: Prisma.StringFieldUpdateOperationsInput | string
   guestEmail?: Prisma.StringFieldUpdateOperationsInput | string
   numberOfGuests?: Prisma.IntFieldUpdateOperationsInput | number
+  responseType?: Prisma.StringFieldUpdateOperationsInput | string
   confirmedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   event?: Prisma.EventUpdateOneRequiredWithoutAttendancesNestedInput
 }
@@ -564,6 +592,7 @@ export type AttendanceUncheckedUpdateWithoutConfirmationsInput = {
   guestName?: Prisma.StringFieldUpdateOperationsInput | string
   guestEmail?: Prisma.StringFieldUpdateOperationsInput | string
   numberOfGuests?: Prisma.IntFieldUpdateOperationsInput | number
+  responseType?: Prisma.StringFieldUpdateOperationsInput | string
   confirmedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
 
@@ -572,6 +601,7 @@ export type AttendanceCreateManyEventInput = {
   guestName: string
   guestEmail: string
   numberOfGuests: number
+  responseType?: string
   confirmedAt?: Date | string
 }
 
@@ -580,6 +610,7 @@ export type AttendanceUpdateWithoutEventInput = {
   guestName?: Prisma.StringFieldUpdateOperationsInput | string
   guestEmail?: Prisma.StringFieldUpdateOperationsInput | string
   numberOfGuests?: Prisma.IntFieldUpdateOperationsInput | number
+  responseType?: Prisma.StringFieldUpdateOperationsInput | string
   confirmedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   confirmations?: Prisma.ConfirmationUpdateManyWithoutAttendanceNestedInput
 }
@@ -589,6 +620,7 @@ export type AttendanceUncheckedUpdateWithoutEventInput = {
   guestName?: Prisma.StringFieldUpdateOperationsInput | string
   guestEmail?: Prisma.StringFieldUpdateOperationsInput | string
   numberOfGuests?: Prisma.IntFieldUpdateOperationsInput | number
+  responseType?: Prisma.StringFieldUpdateOperationsInput | string
   confirmedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   confirmations?: Prisma.ConfirmationUncheckedUpdateManyWithoutAttendanceNestedInput
 }
@@ -598,6 +630,7 @@ export type AttendanceUncheckedUpdateManyWithoutEventInput = {
   guestName?: Prisma.StringFieldUpdateOperationsInput | string
   guestEmail?: Prisma.StringFieldUpdateOperationsInput | string
   numberOfGuests?: Prisma.IntFieldUpdateOperationsInput | number
+  responseType?: Prisma.StringFieldUpdateOperationsInput | string
   confirmedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
 
@@ -638,6 +671,7 @@ export type AttendanceSelect<ExtArgs extends runtime.Types.Extensions.InternalAr
   guestName?: boolean
   guestEmail?: boolean
   numberOfGuests?: boolean
+  responseType?: boolean
   confirmedAt?: boolean
   event?: boolean | Prisma.EventDefaultArgs<ExtArgs>
   confirmations?: boolean | Prisma.Attendance$confirmationsArgs<ExtArgs>
@@ -650,6 +684,7 @@ export type AttendanceSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Ex
   guestName?: boolean
   guestEmail?: boolean
   numberOfGuests?: boolean
+  responseType?: boolean
   confirmedAt?: boolean
   event?: boolean | Prisma.EventDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["attendance"]>
@@ -660,6 +695,7 @@ export type AttendanceSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Ex
   guestName?: boolean
   guestEmail?: boolean
   numberOfGuests?: boolean
+  responseType?: boolean
   confirmedAt?: boolean
   event?: boolean | Prisma.EventDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["attendance"]>
@@ -670,10 +706,11 @@ export type AttendanceSelectScalar = {
   guestName?: boolean
   guestEmail?: boolean
   numberOfGuests?: boolean
+  responseType?: boolean
   confirmedAt?: boolean
 }
 
-export type AttendanceOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "eventId" | "guestName" | "guestEmail" | "numberOfGuests" | "confirmedAt", ExtArgs["result"]["attendance"]>
+export type AttendanceOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "eventId" | "guestName" | "guestEmail" | "numberOfGuests" | "responseType" | "confirmedAt", ExtArgs["result"]["attendance"]>
 export type AttendanceInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   event?: boolean | Prisma.EventDefaultArgs<ExtArgs>
   confirmations?: boolean | Prisma.Attendance$confirmationsArgs<ExtArgs>
@@ -698,6 +735,7 @@ export type $AttendancePayload<ExtArgs extends runtime.Types.Extensions.Internal
     guestName: string
     guestEmail: string
     numberOfGuests: number
+    responseType: string
     confirmedAt: Date
   }, ExtArgs["result"]["attendance"]>
   composites: {}
@@ -1129,6 +1167,7 @@ export interface AttendanceFieldRefs {
   readonly guestName: Prisma.FieldRef<"Attendance", 'String'>
   readonly guestEmail: Prisma.FieldRef<"Attendance", 'String'>
   readonly numberOfGuests: Prisma.FieldRef<"Attendance", 'Int'>
+  readonly responseType: Prisma.FieldRef<"Attendance", 'String'>
   readonly confirmedAt: Prisma.FieldRef<"Attendance", 'DateTime'>
 }
     

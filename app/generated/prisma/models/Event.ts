@@ -37,6 +37,7 @@ export type EventMinAggregateOutputType = {
   createdBy: string | null
   createdAt: Date | null
   updatedAt: Date | null
+  isCancelled: boolean | null
 }
 
 export type EventMaxAggregateOutputType = {
@@ -52,6 +53,7 @@ export type EventMaxAggregateOutputType = {
   createdBy: string | null
   createdAt: Date | null
   updatedAt: Date | null
+  isCancelled: boolean | null
 }
 
 export type EventCountAggregateOutputType = {
@@ -67,6 +69,7 @@ export type EventCountAggregateOutputType = {
   createdBy: number
   createdAt: number
   updatedAt: number
+  isCancelled: number
   _all: number
 }
 
@@ -84,6 +87,7 @@ export type EventMinAggregateInputType = {
   createdBy?: true
   createdAt?: true
   updatedAt?: true
+  isCancelled?: true
 }
 
 export type EventMaxAggregateInputType = {
@@ -99,6 +103,7 @@ export type EventMaxAggregateInputType = {
   createdBy?: true
   createdAt?: true
   updatedAt?: true
+  isCancelled?: true
 }
 
 export type EventCountAggregateInputType = {
@@ -114,6 +119,7 @@ export type EventCountAggregateInputType = {
   createdBy?: true
   createdAt?: true
   updatedAt?: true
+  isCancelled?: true
   _all?: true
 }
 
@@ -202,6 +208,7 @@ export type EventGroupByOutputType = {
   createdBy: string
   createdAt: Date
   updatedAt: Date
+  isCancelled: boolean
   _count: EventCountAggregateOutputType | null
   _min: EventMinAggregateOutputType | null
   _max: EventMaxAggregateOutputType | null
@@ -238,6 +245,7 @@ export type EventWhereInput = {
   createdBy?: Prisma.StringFilter<"Event"> | string
   createdAt?: Prisma.DateTimeFilter<"Event"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"Event"> | Date | string
+  isCancelled?: Prisma.BoolFilter<"Event"> | boolean
   user?: Prisma.XOR<Prisma.UserScalarRelationFilter, Prisma.UserWhereInput>
   attendances?: Prisma.AttendanceListRelationFilter
   confirmations?: Prisma.ConfirmationListRelationFilter
@@ -256,6 +264,7 @@ export type EventOrderByWithRelationInput = {
   createdBy?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
+  isCancelled?: Prisma.SortOrder
   user?: Prisma.UserOrderByWithRelationInput
   attendances?: Prisma.AttendanceOrderByRelationAggregateInput
   confirmations?: Prisma.ConfirmationOrderByRelationAggregateInput
@@ -277,6 +286,7 @@ export type EventWhereUniqueInput = Prisma.AtLeast<{
   createdBy?: Prisma.StringFilter<"Event"> | string
   createdAt?: Prisma.DateTimeFilter<"Event"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"Event"> | Date | string
+  isCancelled?: Prisma.BoolFilter<"Event"> | boolean
   user?: Prisma.XOR<Prisma.UserScalarRelationFilter, Prisma.UserWhereInput>
   attendances?: Prisma.AttendanceListRelationFilter
   confirmations?: Prisma.ConfirmationListRelationFilter
@@ -295,6 +305,7 @@ export type EventOrderByWithAggregationInput = {
   createdBy?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
+  isCancelled?: Prisma.SortOrder
   _count?: Prisma.EventCountOrderByAggregateInput
   _max?: Prisma.EventMaxOrderByAggregateInput
   _min?: Prisma.EventMinOrderByAggregateInput
@@ -316,6 +327,7 @@ export type EventScalarWhereWithAggregatesInput = {
   createdBy?: Prisma.StringWithAggregatesFilter<"Event"> | string
   createdAt?: Prisma.DateTimeWithAggregatesFilter<"Event"> | Date | string
   updatedAt?: Prisma.DateTimeWithAggregatesFilter<"Event"> | Date | string
+  isCancelled?: Prisma.BoolWithAggregatesFilter<"Event"> | boolean
 }
 
 export type EventCreateInput = {
@@ -330,6 +342,7 @@ export type EventCreateInput = {
   createdBy: string
   createdAt?: Date | string
   updatedAt?: Date | string
+  isCancelled?: boolean
   user: Prisma.UserCreateNestedOneWithoutEventsInput
   attendances?: Prisma.AttendanceCreateNestedManyWithoutEventInput
   confirmations?: Prisma.ConfirmationCreateNestedManyWithoutEventInput
@@ -348,6 +361,7 @@ export type EventUncheckedCreateInput = {
   createdBy: string
   createdAt?: Date | string
   updatedAt?: Date | string
+  isCancelled?: boolean
   attendances?: Prisma.AttendanceUncheckedCreateNestedManyWithoutEventInput
   confirmations?: Prisma.ConfirmationUncheckedCreateNestedManyWithoutEventInput
 }
@@ -364,6 +378,7 @@ export type EventUpdateInput = {
   createdBy?: Prisma.StringFieldUpdateOperationsInput | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  isCancelled?: Prisma.BoolFieldUpdateOperationsInput | boolean
   user?: Prisma.UserUpdateOneRequiredWithoutEventsNestedInput
   attendances?: Prisma.AttendanceUpdateManyWithoutEventNestedInput
   confirmations?: Prisma.ConfirmationUpdateManyWithoutEventNestedInput
@@ -382,6 +397,7 @@ export type EventUncheckedUpdateInput = {
   createdBy?: Prisma.StringFieldUpdateOperationsInput | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  isCancelled?: Prisma.BoolFieldUpdateOperationsInput | boolean
   attendances?: Prisma.AttendanceUncheckedUpdateManyWithoutEventNestedInput
   confirmations?: Prisma.ConfirmationUncheckedUpdateManyWithoutEventNestedInput
 }
@@ -399,6 +415,7 @@ export type EventCreateManyInput = {
   createdBy: string
   createdAt?: Date | string
   updatedAt?: Date | string
+  isCancelled?: boolean
 }
 
 export type EventUpdateManyMutationInput = {
@@ -413,6 +430,7 @@ export type EventUpdateManyMutationInput = {
   createdBy?: Prisma.StringFieldUpdateOperationsInput | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  isCancelled?: Prisma.BoolFieldUpdateOperationsInput | boolean
 }
 
 export type EventUncheckedUpdateManyInput = {
@@ -428,6 +446,7 @@ export type EventUncheckedUpdateManyInput = {
   createdBy?: Prisma.StringFieldUpdateOperationsInput | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  isCancelled?: Prisma.BoolFieldUpdateOperationsInput | boolean
 }
 
 export type EventListRelationFilter = {
@@ -453,6 +472,7 @@ export type EventCountOrderByAggregateInput = {
   createdBy?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
+  isCancelled?: Prisma.SortOrder
 }
 
 export type EventMaxOrderByAggregateInput = {
@@ -468,6 +488,7 @@ export type EventMaxOrderByAggregateInput = {
   createdBy?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
+  isCancelled?: Prisma.SortOrder
 }
 
 export type EventMinOrderByAggregateInput = {
@@ -483,6 +504,7 @@ export type EventMinOrderByAggregateInput = {
   createdBy?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
+  isCancelled?: Prisma.SortOrder
 }
 
 export type EventScalarRelationFilter = {
@@ -572,6 +594,7 @@ export type EventCreateWithoutUserInput = {
   createdBy: string
   createdAt?: Date | string
   updatedAt?: Date | string
+  isCancelled?: boolean
   attendances?: Prisma.AttendanceCreateNestedManyWithoutEventInput
   confirmations?: Prisma.ConfirmationCreateNestedManyWithoutEventInput
 }
@@ -588,6 +611,7 @@ export type EventUncheckedCreateWithoutUserInput = {
   createdBy: string
   createdAt?: Date | string
   updatedAt?: Date | string
+  isCancelled?: boolean
   attendances?: Prisma.AttendanceUncheckedCreateNestedManyWithoutEventInput
   confirmations?: Prisma.ConfirmationUncheckedCreateNestedManyWithoutEventInput
 }
@@ -634,6 +658,7 @@ export type EventScalarWhereInput = {
   createdBy?: Prisma.StringFilter<"Event"> | string
   createdAt?: Prisma.DateTimeFilter<"Event"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"Event"> | Date | string
+  isCancelled?: Prisma.BoolFilter<"Event"> | boolean
 }
 
 export type EventCreateWithoutAttendancesInput = {
@@ -648,6 +673,7 @@ export type EventCreateWithoutAttendancesInput = {
   createdBy: string
   createdAt?: Date | string
   updatedAt?: Date | string
+  isCancelled?: boolean
   user: Prisma.UserCreateNestedOneWithoutEventsInput
   confirmations?: Prisma.ConfirmationCreateNestedManyWithoutEventInput
 }
@@ -665,6 +691,7 @@ export type EventUncheckedCreateWithoutAttendancesInput = {
   createdBy: string
   createdAt?: Date | string
   updatedAt?: Date | string
+  isCancelled?: boolean
   confirmations?: Prisma.ConfirmationUncheckedCreateNestedManyWithoutEventInput
 }
 
@@ -696,6 +723,7 @@ export type EventUpdateWithoutAttendancesInput = {
   createdBy?: Prisma.StringFieldUpdateOperationsInput | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  isCancelled?: Prisma.BoolFieldUpdateOperationsInput | boolean
   user?: Prisma.UserUpdateOneRequiredWithoutEventsNestedInput
   confirmations?: Prisma.ConfirmationUpdateManyWithoutEventNestedInput
 }
@@ -713,6 +741,7 @@ export type EventUncheckedUpdateWithoutAttendancesInput = {
   createdBy?: Prisma.StringFieldUpdateOperationsInput | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  isCancelled?: Prisma.BoolFieldUpdateOperationsInput | boolean
   confirmations?: Prisma.ConfirmationUncheckedUpdateManyWithoutEventNestedInput
 }
 
@@ -728,6 +757,7 @@ export type EventCreateWithoutConfirmationsInput = {
   createdBy: string
   createdAt?: Date | string
   updatedAt?: Date | string
+  isCancelled?: boolean
   user: Prisma.UserCreateNestedOneWithoutEventsInput
   attendances?: Prisma.AttendanceCreateNestedManyWithoutEventInput
 }
@@ -745,6 +775,7 @@ export type EventUncheckedCreateWithoutConfirmationsInput = {
   createdBy: string
   createdAt?: Date | string
   updatedAt?: Date | string
+  isCancelled?: boolean
   attendances?: Prisma.AttendanceUncheckedCreateNestedManyWithoutEventInput
 }
 
@@ -776,6 +807,7 @@ export type EventUpdateWithoutConfirmationsInput = {
   createdBy?: Prisma.StringFieldUpdateOperationsInput | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  isCancelled?: Prisma.BoolFieldUpdateOperationsInput | boolean
   user?: Prisma.UserUpdateOneRequiredWithoutEventsNestedInput
   attendances?: Prisma.AttendanceUpdateManyWithoutEventNestedInput
 }
@@ -793,6 +825,7 @@ export type EventUncheckedUpdateWithoutConfirmationsInput = {
   createdBy?: Prisma.StringFieldUpdateOperationsInput | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  isCancelled?: Prisma.BoolFieldUpdateOperationsInput | boolean
   attendances?: Prisma.AttendanceUncheckedUpdateManyWithoutEventNestedInput
 }
 
@@ -808,6 +841,7 @@ export type EventCreateManyUserInput = {
   createdBy: string
   createdAt?: Date | string
   updatedAt?: Date | string
+  isCancelled?: boolean
 }
 
 export type EventUpdateWithoutUserInput = {
@@ -822,6 +856,7 @@ export type EventUpdateWithoutUserInput = {
   createdBy?: Prisma.StringFieldUpdateOperationsInput | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  isCancelled?: Prisma.BoolFieldUpdateOperationsInput | boolean
   attendances?: Prisma.AttendanceUpdateManyWithoutEventNestedInput
   confirmations?: Prisma.ConfirmationUpdateManyWithoutEventNestedInput
 }
@@ -838,6 +873,7 @@ export type EventUncheckedUpdateWithoutUserInput = {
   createdBy?: Prisma.StringFieldUpdateOperationsInput | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  isCancelled?: Prisma.BoolFieldUpdateOperationsInput | boolean
   attendances?: Prisma.AttendanceUncheckedUpdateManyWithoutEventNestedInput
   confirmations?: Prisma.ConfirmationUncheckedUpdateManyWithoutEventNestedInput
 }
@@ -854,6 +890,7 @@ export type EventUncheckedUpdateManyWithoutUserInput = {
   createdBy?: Prisma.StringFieldUpdateOperationsInput | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  isCancelled?: Prisma.BoolFieldUpdateOperationsInput | boolean
 }
 
 
@@ -909,6 +946,7 @@ export type EventSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = 
   createdBy?: boolean
   createdAt?: boolean
   updatedAt?: boolean
+  isCancelled?: boolean
   user?: boolean | Prisma.UserDefaultArgs<ExtArgs>
   attendances?: boolean | Prisma.Event$attendancesArgs<ExtArgs>
   confirmations?: boolean | Prisma.Event$confirmationsArgs<ExtArgs>
@@ -928,6 +966,7 @@ export type EventSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Extensi
   createdBy?: boolean
   createdAt?: boolean
   updatedAt?: boolean
+  isCancelled?: boolean
   user?: boolean | Prisma.UserDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["event"]>
 
@@ -944,6 +983,7 @@ export type EventSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensi
   createdBy?: boolean
   createdAt?: boolean
   updatedAt?: boolean
+  isCancelled?: boolean
   user?: boolean | Prisma.UserDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["event"]>
 
@@ -960,9 +1000,10 @@ export type EventSelectScalar = {
   createdBy?: boolean
   createdAt?: boolean
   updatedAt?: boolean
+  isCancelled?: boolean
 }
 
-export type EventOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "userId" | "title" | "description" | "date" | "time" | "location" | "imageUrl" | "slug" | "createdBy" | "createdAt" | "updatedAt", ExtArgs["result"]["event"]>
+export type EventOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "userId" | "title" | "description" | "date" | "time" | "location" | "imageUrl" | "slug" | "createdBy" | "createdAt" | "updatedAt" | "isCancelled", ExtArgs["result"]["event"]>
 export type EventInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   user?: boolean | Prisma.UserDefaultArgs<ExtArgs>
   attendances?: boolean | Prisma.Event$attendancesArgs<ExtArgs>
@@ -996,6 +1037,7 @@ export type $EventPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs 
     createdBy: string
     createdAt: Date
     updatedAt: Date
+    isCancelled: boolean
   }, ExtArgs["result"]["event"]>
   composites: {}
 }
@@ -1434,6 +1476,7 @@ export interface EventFieldRefs {
   readonly createdBy: Prisma.FieldRef<"Event", 'String'>
   readonly createdAt: Prisma.FieldRef<"Event", 'DateTime'>
   readonly updatedAt: Prisma.FieldRef<"Event", 'DateTime'>
+  readonly isCancelled: Prisma.FieldRef<"Event", 'Boolean'>
 }
     
 

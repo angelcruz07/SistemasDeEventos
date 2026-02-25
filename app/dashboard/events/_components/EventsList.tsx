@@ -5,6 +5,7 @@ import { EventCard } from "./EventCard";
 import { CreateEventModal } from "./CreateEventModal";
 import { EditEventModal } from "./EditEventModal";
 import { DeleteEventDialog } from "./DeleteEventDialog";
+import { EventAttendeesModal } from "./EventAttendeesModal";
 import { getEvents, deleteEvent } from "../_actions/event.actions";
 import type { Event } from "@/app/generated/prisma/client";
 import { Button } from "@/components/ui/button";
@@ -16,6 +17,7 @@ export function EventsList() {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [editingEvent, setEditingEvent] = useState<Event | null>(null);
   const [eventToDelete, setEventToDelete] = useState<Event | null>(null);
+  const [eventAttendees, setEventAttendees] = useState<Event | null>(null);
   const [deleting, setDeleting] = useState(false);
 
   const loadEvents = async () => {
@@ -107,6 +109,7 @@ export function EventsList() {
                 event={event}
                 onEdit={handleEdit}
                 onDelete={handleDeleteClick}
+                onViewAttendees={(e) => setEventAttendees(e)}
               />
             ))}
         </div>
@@ -131,6 +134,12 @@ export function EventsList() {
         onConfirm={handleDeleteConfirm}
         onCancel={handleDeleteCancel}
         loading={deleting}
+      />
+
+      <EventAttendeesModal
+        open={!!eventAttendees}
+        event={eventAttendees}
+        onClose={() => setEventAttendees(null)}
       />
     </div>
   );

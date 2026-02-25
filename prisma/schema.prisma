@@ -75,6 +75,7 @@ model Event {
   createdBy   String
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+  isCancelled Boolean  @default(false)
 
   user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
   attendances   Attendance[]
@@ -87,6 +88,7 @@ model Attendance {
   guestName      String
   guestEmail     String
   numberOfGuests Int
+  responseType   String   @default("confirmed") // "confirmed" | "maybe" | "declined"
   confirmedAt    DateTime @default(now())
 
   event         Event          @relation(fields: [eventId], references: [id], onDelete: Cascade)

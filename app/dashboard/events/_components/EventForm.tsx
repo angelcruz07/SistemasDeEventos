@@ -44,6 +44,7 @@ interface FormData {
   time: string;
   location: string;
   imageUrl: string;
+  isCancelled?: boolean;
 }
 
 const emptyForm: FormData = {
@@ -58,6 +59,7 @@ const emptyForm: FormData = {
 function eventToFormData(event: Event): FormData {
   const d = new Date(event.date);
   const dateStr = d.toISOString().split("T")[0];
+  const eventWithCancelled = event as Event & { isCancelled?: boolean };
   return {
     title: event.title,
     description: event.description,
@@ -65,19 +67,52 @@ function eventToFormData(event: Event): FormData {
     time: event.time,
     location: event.location,
     imageUrl: event.imageUrl ?? "",
+    isCancelled: eventWithCancelled.isCancelled ?? false,
   };
 }
 
 const id = (prefix: string, name: string) => (prefix ? `${prefix}-${name}` : name);
 
+const UPLOAD_ENDPOINT = "/api/upload/cloudinary";
+
 export function EventForm({ event, onSuccess, onCancel, variant = "card", formIdPrefix = "" }: EventFormProps) {
   const [loading, setLoading] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [formData, setFormData] = useState<FormData>(() =>
     event ? eventToFormData(event) : { ...emptyForm }
   );
 
   const isEditing = !!event;
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadError(null);
+    setUploading(true);
+    try {
+      const formDataUpload = new FormData();
+      formDataUpload.append("file", file);
+      const res = await fetch(UPLOAD_ENDPOINT, {
+        method: "POST",
+        body: formDataUpload,
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setUploadError(data.error ?? "Error al subir la imagen");
+        return;
+      }
+      if (data.url) {
+        setFormData((prev) => ({ ...prev, imageUrl: data.url }));
+      }
+    } catch {
+      setUploadError("Error de conexión al subir la imagen");
+    } finally {
+      setUploading(false);
+      e.target.value = "";
+    }
+  };
 
   // Sincronizar formulario cuando se selecciona otro evento para editar
   useEffect(() => {
@@ -89,30 +124,54 @@ export function EventForm({ event, onSuccess, onCancel, variant = "card", formId
     setError(null);
   }, [event?.id]);
 
-  const handleChange = (field: keyof FormData, value: string) => {
+  const handleChange = (field: keyof FormData, value: string | boolean) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
     setError(null);
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-    setError(null);
+  const isEventDateInPast = (dateStr: string, timeStr: string): boolean => {
+    if (!dateStr?.trim() || !timeStr?.trim()) return false;
+    const dateParts = dateStr.trim().split("-").map(Number);
+    const timeParts = timeStr.trim().split(":").map(Number);
+    if (dateParts.length < 3 || timeParts.length < 2) return false;
+    const [year, month, day] = dateParts;
+    const [hours, minutes] = timeParts;
+    if ([year, month, day, hours, minutes].some((n) => Number.isNaN(n))) return false;
+    const eventDate = new Date(year, month - 1, day, hours, minutes, 0, 0);
+    if (Number.isNaN(eventDate.getTime())) return false;
+    return eventDate.getTime() <= Date.now();
+  };
 
-    if (!formData.title.trim()) {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setError(null);
+    setLoading(true);
+
+    const form = e.currentTarget;
+    const dateValue = (form.elements.namedItem(id(formIdPrefix, "date")) as HTMLInputElement | null)?.value ?? formData.date;
+    const timeValue = (form.elements.namedItem(id(formIdPrefix, "time")) as HTMLInputElement | null)?.value ?? formData.time;
+    const titleValue = formData.title.trim();
+    const payload = { ...formData, date: dateValue, time: timeValue };
+
+    if (!titleValue) {
       setError("El título es obligatorio");
       setLoading(false);
       return;
     }
-    if (!formData.date || !formData.time) {
+    if (!dateValue || !timeValue) {
       setError("La fecha y hora son obligatorias");
+      setLoading(false);
+      return;
+    }
+    if (isEventDateInPast(dateValue, timeValue)) {
+      setError("No puedes usar una fecha u hora pasada. Elige una fecha y hora futuras.");
       setLoading(false);
       return;
     }
 
     const result = isEditing
-      ? await updateEvent({ ...formData, id: event.id })
-      : await createEvent(formData);
+      ? await updateEvent({ ...payload, id: event.id, isCancelled: formData.isCancelled })
+      : await createEvent(payload);
 
     setLoading(false);
 
@@ -131,6 +190,7 @@ export function EventForm({ event, onSuccess, onCancel, variant = "card", formId
   };
 
   const isInline = variant === "inline";
+  const today = new Date().toISOString().split("T")[0];
 
   const inputBase =
     "border-input bg-transparent rounded-lg border px-3 py-2 text-sm shadow-sm transition-[color,box-shadow] outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] placeholder:text-muted-foreground disabled:opacity-50 h-10 w-full min-w-0";
@@ -198,6 +258,7 @@ export function EventForm({ event, onSuccess, onCancel, variant = "card", formId
                   id={id(formIdPrefix, "date")}
                   type="date"
                   value={formData.date}
+                  min={today}
                   onChange={(e) => handleChange("date", e.target.value)}
                   required
                   className="h-10 rounded-lg border-input"
@@ -220,6 +281,23 @@ export function EventForm({ event, onSuccess, onCancel, variant = "card", formId
             </div>
           </section>
 
+          {isEditing && (
+            <section className="space-y-4 pb-2 border-t border-border/60 pt-6">
+              <h3 className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                Estado del evento
+              </h3>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={formData.isCancelled ?? false}
+                  onChange={(e) => handleChange("isCancelled", e.target.checked)}
+                  className="rounded border-input size-4"
+                />
+                <span className="text-sm font-medium">Evento cancelado</span>
+              </label>
+            </section>
+          )}
+
           <section className="space-y-4 pb-2 border-t border-border/60 pt-6">
             <h3 className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
               Ubicación e imagen
@@ -238,18 +316,58 @@ export function EventForm({ event, onSuccess, onCancel, variant = "card", formId
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor={id(formIdPrefix, "imageUrl")} className="text-sm font-medium flex items-center gap-2">
+              <Label className="text-sm font-medium flex items-center gap-2">
                 <ImageIcon className="size-3.5 text-muted-foreground" />
-                URL de imagen
+                Imagen del evento
               </Label>
-              <Input
-                id={id(formIdPrefix, "imageUrl")}
-                type="url"
-                placeholder="https://ejemplo.com/imagen.jpg"
-                value={formData.imageUrl}
-                onChange={(e) => handleChange("imageUrl", e.target.value)}
-                className="h-10 rounded-lg border-input font-mono text-sm"
-              />
+              <div className="flex flex-col gap-2">
+                <div className="flex gap-2 flex-wrap items-center">
+                  <label className="cursor-pointer inline-flex">
+                    <input
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp,image/gif"
+                      className="sr-only"
+                      disabled={uploading}
+                      onChange={handleImageUpload}
+                    />
+                    <span className="inline-flex items-center justify-center gap-2 rounded-lg border border-input bg-background px-3 py-2 text-sm font-medium h-9 hover:bg-accent hover:text-accent-foreground">
+                      {uploading ? (
+                        <>
+                          <Loader2 className="size-4 animate-spin shrink-0" />
+                          Subiendo...
+                        </>
+                      ) : (
+                        "Subir a Cloudinary"
+                      )}
+                    </span>
+                  </label>
+                  <span className="text-xs text-muted-foreground">JPEG, PNG, WebP o GIF. Máx. 5 MB</span>
+                </div>
+                {uploadError && (
+                  <p className="text-xs text-destructive flex items-center gap-1">
+                    <AlertCircle className="size-3.5 shrink-0" />
+                    {uploadError}
+                  </p>
+                )}
+                {formData.imageUrl ? (
+                  <div className="relative rounded-lg border border-border overflow-hidden bg-muted/30 w-full max-w-[280px] aspect-video">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={formData.imageUrl}
+                      alt="Vista previa"
+                      className="object-cover w-full h-full"
+                    />
+                  </div>
+                ) : null}
+                <Input
+                  id={id(formIdPrefix, "imageUrl")}
+                  type="url"
+                  placeholder="O pega la URL de una imagen"
+                  value={formData.imageUrl}
+                  onChange={(e) => handleChange("imageUrl", e.target.value)}
+                  className="h-10 rounded-lg border-input font-mono text-sm"
+                />
+              </div>
             </div>
           </section>
 
@@ -322,6 +440,7 @@ export function EventForm({ event, onSuccess, onCancel, variant = "card", formId
                   id={id(formIdPrefix, "date")}
                   type="date"
                   value={formData.date}
+                  min={today}
                   onChange={(e) => handleChange("date", e.target.value)}
                   required
                 />
@@ -337,6 +456,20 @@ export function EventForm({ event, onSuccess, onCancel, variant = "card", formId
                 />
               </div>
             </div>
+            {isEditing && (
+              <div className="space-y-2">
+                <Label className="text-sm font-medium">Estado del evento</Label>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={formData.isCancelled ?? false}
+                    onChange={(e) => handleChange("isCancelled", e.target.checked)}
+                    className="rounded border-input size-4"
+                  />
+                  <span>Evento cancelado</span>
+                </label>
+              </div>
+            )}
             <div className="space-y-2">
               <Label htmlFor={id(formIdPrefix, "location")}>Ubicación</Label>
               <Input
@@ -347,13 +480,43 @@ export function EventForm({ event, onSuccess, onCancel, variant = "card", formId
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor={id(formIdPrefix, "imageUrl")}>URL de imagen</Label>
-              <Input
-                id={id(formIdPrefix, "imageUrl")}
-                placeholder="https://..."
-                value={formData.imageUrl}
-                onChange={(e) => handleChange("imageUrl", e.target.value)}
-              />
+              <Label>Imagen del evento</Label>
+              <div className="space-y-2">
+                <label className="inline-flex cursor-pointer">
+                  <input
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp,image/gif"
+                    className="sr-only"
+                    disabled={uploading}
+                    onChange={handleImageUpload}
+                  />
+                  <span className="inline-flex items-center justify-center gap-2 rounded-md border border-input bg-background px-3 py-2 text-sm font-medium hover:bg-accent hover:text-accent-foreground">
+                    {uploading ? (
+                      <>
+                        <Loader2 className="size-4 animate-spin shrink-0" />
+                        Subiendo...
+                      </>
+                    ) : (
+                      "Subir imagen (Cloudinary)"
+                    )}
+                  </span>
+                </label>
+                {uploadError && (
+                  <p className="text-sm text-destructive">{uploadError}</p>
+                )}
+                {formData.imageUrl && (
+                  <div className="relative rounded border overflow-hidden max-w-[240px] aspect-video bg-muted/30">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={formData.imageUrl} alt="Vista previa" className="object-cover w-full h-full" />
+                  </div>
+                )}
+                <Input
+                  id={id(formIdPrefix, "imageUrl")}
+                  placeholder="URL de imagen (o sube un archivo arriba)"
+                  value={formData.imageUrl}
+                  onChange={(e) => handleChange("imageUrl", e.target.value)}
+                />
+              </div>
             </div>
           </div>
           <div className="flex flex-col sm:flex-row gap-2 mt-6">
