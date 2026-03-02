@@ -1,18 +1,36 @@
 "use server";
 
 import prisma from "@/app/lib/prisma";
+import { auth } from "@/lib/auth";
+import { headers } from "next/headers";
 
 export async function getDashboardStats() {
   try {
+    const session = await auth.api.getSession({
+      headers: await headers(),
+    });
+
+    if (!session) {
+      return {
+        success: false,
+        error: "No autenticado",
+      };
+    }
+
+    const userId = session.user.id;
+
     const [eventCount, attendanceCount, upcomingEventCount] = await Promise.all([
-      prisma.event.count(),
-      prisma.attendance.count(),
+      prisma.event.count({ where: { userId } }),
+      prisma.attendance.count({
+        where: { event: { userId } },
+      }),
       prisma.event.count({
-        where: { date: { gte: new Date() } },
+        where: { userId, date: { gte: new Date() } },
       }),
     ]);
 
     const recentEvents = await prisma.event.findMany({
+      where: { userId },
       take: 5,
       orderBy: { createdAt: "desc" },
       include: {

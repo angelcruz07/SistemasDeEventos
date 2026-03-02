@@ -99,7 +99,9 @@ export async function createEvent(data: CreateEventInput) {
 
 export async function getEvents() {
   try {
+    const user = await getAuthenticatedUser();
     const events = await prisma.event.findMany({
+      where: { userId: user.id },
       orderBy: { date: "asc" },
     });
     return { success: true, data: events };
@@ -115,7 +117,17 @@ export async function getEvents() {
 
 export async function updateEvent(data: UpdateEventInput) {
   try {
-    await getAuthenticatedUser();
+    const user = await getAuthenticatedUser();
+    const existing = await prisma.event.findUnique({
+      where: { id: data.id },
+      select: { userId: true },
+    });
+    if (!existing || existing.userId !== user.id) {
+      return {
+        success: false,
+        error: "No tienes permiso para editar este evento.",
+      };
+    }
     if (isEventDateTimeInPast(data.date, data.time)) {
       return {
         success: false,
@@ -150,7 +162,17 @@ export async function updateEvent(data: UpdateEventInput) {
 
 export async function deleteEvent(id: string) {
   try {
-    await getAuthenticatedUser();
+    const user = await getAuthenticatedUser();
+    const existing = await prisma.event.findUnique({
+      where: { id },
+      select: { userId: true },
+    });
+    if (!existing || existing.userId !== user.id) {
+      return {
+        success: false,
+        error: "No tienes permiso para eliminar este evento.",
+      };
+    }
 
     await prisma.confirmation.deleteMany({ where: { eventId: id } });
     await prisma.attendance.deleteMany({ where: { eventId: id } });
@@ -174,9 +196,16 @@ export async function deleteEvent(id: string) {
 
 export async function getEventById(id: string) {
   try {
+    const user = await getAuthenticatedUser();
     const event = await prisma.event.findUnique({
       where: { id },
     });
+    if (!event) {
+      return { success: false, error: "Evento no encontrado." };
+    }
+    if (event.userId !== user.id) {
+      return { success: false, error: "No tienes permiso para ver este evento." };
+    }
     return { success: true, data: event };
   } catch (error) {
     console.error("Error fetching event:", error);
