@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   Card,
   CardHeader,
@@ -83,6 +83,8 @@ export function EventForm({ event, onSuccess, onCancel, variant = "card", formId
   const [formData, setFormData] = useState<FormData>(() =>
     event ? eventToFormData(event) : { ...emptyForm }
   );
+  const locationInputRef = useRef<HTMLInputElement>(null);
+  const autocompleteInitialized = useRef(false);
 
   const isEditing = !!event;
 
@@ -123,6 +125,37 @@ export function EventForm({ event, onSuccess, onCancel, variant = "card", formId
     }
     setError(null);
   }, [event?.id]);
+
+  // Inicializar Google Places Autocomplete en el campo ubicación cuando el script esté cargado
+  useEffect(() => {
+    if (autocompleteInitialized.current) return;
+    let attempts = 0;
+    const maxAttempts = 40; // ~12 s
+    const id = setInterval(() => {
+      attempts++;
+      if (attempts > maxAttempts) {
+        clearInterval(id);
+        return;
+      }
+      if (!locationInputRef.current) return;
+      const g = (window as unknown as { google?: { maps?: { places?: { Autocomplete: new (input: HTMLInputElement, opts?: { types?: string[]; language?: string }) => { addListener: (event: string, fn: () => void) => void; getPlace: () => { formatted_address?: string; name?: string } } } } } }).google;
+      if (!g?.maps?.places) return;
+      clearInterval(id);
+      const input = locationInputRef.current;
+      if (!input || autocompleteInitialized.current) return;
+      const autocomplete = new g.maps.places.Autocomplete(input, {
+        types: ["establishment", "geocode"],
+        language: "es",
+      });
+      autocomplete.addListener("place_changed", () => {
+        const place = autocomplete.getPlace();
+        const address = place.formatted_address || place.name || "";
+        if (address) setFormData((prev) => ({ ...prev, location: address }));
+      });
+      autocompleteInitialized.current = true;
+    }, 300);
+    return () => clearInterval(id);
+  }, []);
 
   const handleChange = (field: keyof FormData, value: string | boolean) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
@@ -307,12 +340,15 @@ export function EventForm({ event, onSuccess, onCancel, variant = "card", formId
                 <MapPin className="size-3.5 text-muted-foreground" />
                 Ubicación
               </Label>
-              <Input
+              <input
+                ref={locationInputRef}
                 id={id(formIdPrefix, "location")}
-                placeholder="Lugar del evento"
+                type="text"
+                placeholder="Buscar dirección o lugar en Google Maps"
                 value={formData.location}
                 onChange={(e) => handleChange("location", e.target.value)}
-                className="h-10 rounded-lg border-input"
+                autoComplete="off"
+                className={cn(inputBase, "h-10 rounded-lg border-input")}
               />
             </div>
             <div className="space-y-2">
@@ -337,7 +373,7 @@ export function EventForm({ event, onSuccess, onCancel, variant = "card", formId
                           Subiendo...
                         </>
                       ) : (
-                        "Subir a Cloudinary"
+                        "Subir imagen"
                       )}
                     </span>
                   </label>
@@ -359,14 +395,6 @@ export function EventForm({ event, onSuccess, onCancel, variant = "card", formId
                     />
                   </div>
                 ) : null}
-                <Input
-                  id={id(formIdPrefix, "imageUrl")}
-                  type="url"
-                  placeholder="O pega la URL de una imagen"
-                  value={formData.imageUrl}
-                  onChange={(e) => handleChange("imageUrl", e.target.value)}
-                  className="h-10 rounded-lg border-input font-mono text-sm"
-                />
               </div>
             </div>
           </section>
@@ -472,11 +500,15 @@ export function EventForm({ event, onSuccess, onCancel, variant = "card", formId
             )}
             <div className="space-y-2">
               <Label htmlFor={id(formIdPrefix, "location")}>Ubicación</Label>
-              <Input
+              <input
+                ref={locationInputRef}
                 id={id(formIdPrefix, "location")}
-                placeholder="Lugar del evento"
+                type="text"
+                placeholder="Buscar dirección o lugar en Google Maps"
                 value={formData.location}
                 onChange={(e) => handleChange("location", e.target.value)}
+                autoComplete="off"
+                className={cn(inputBase, "rounded-md")}
               />
             </div>
             <div className="space-y-2">
@@ -497,7 +529,7 @@ export function EventForm({ event, onSuccess, onCancel, variant = "card", formId
                         Subiendo...
                       </>
                     ) : (
-                      "Subir imagen (Cloudinary)"
+                      "Subir imagen"
                     )}
                   </span>
                 </label>
@@ -510,12 +542,6 @@ export function EventForm({ event, onSuccess, onCancel, variant = "card", formId
                     <img src={formData.imageUrl} alt="Vista previa" className="object-cover w-full h-full" />
                   </div>
                 )}
-                <Input
-                  id={id(formIdPrefix, "imageUrl")}
-                  placeholder="URL de imagen (o sube un archivo arriba)"
-                  value={formData.imageUrl}
-                  onChange={(e) => handleChange("imageUrl", e.target.value)}
-                />
               </div>
             </div>
           </div>

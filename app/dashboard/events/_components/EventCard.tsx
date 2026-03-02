@@ -13,6 +13,7 @@ interface EventCardProps {
   onEdit: (event: Event) => void;
   onDelete: (event: Event) => void;
   onViewAttendees?: (event: Event) => void;
+  onShowQr?: (event: Event) => void;
 }
 
 type EventStatus = "cancelado" | "finalizado" | "próximo";
@@ -63,60 +64,76 @@ function formatDate(date: Date): string {
   });
 }
 
-export function EventCard({ event, onEdit, onDelete, onViewAttendees }: EventCardProps) {
+export function EventCard({ event, onEdit, onDelete, onViewAttendees, onShowQr }: EventCardProps) {
   const imageUrl = event.imageUrl?.trim();
   const hasValidImage = imageUrl && (imageUrl.startsWith("http://") || imageUrl.startsWith("https://"));
   const status = getEventStatus(event);
   const { label: statusLabel, className: statusClassName } = statusConfig[status];
 
   return (
-    <Card className="overflow-hidden transition-shadow hover:shadow-md flex flex-col min-w-0">
-      <div className="relative aspect-video bg-muted flex items-center justify-center overflow-hidden shrink-0">
-        {hasValidImage ? (
-          <Image
-            src={imageUrl}
-            alt={event.title}
-            width={400}
-            height={225}
-            className="object-cover w-full h-full"
-          />
-        ) : (
-          <Calendar className="size-10 sm:size-12 text-muted-foreground/50" />
-        )}
-        <span
-          className={cn(
-            "absolute top-2 right-2 rounded-full px-2.5 py-0.5 text-xs font-medium shadow-sm",
-            statusClassName
+    <Card className="overflow-hidden transition-shadow hover:shadow-md flex flex-col min-w-0 group">
+      <Link
+        href={`/event/${event.slug}`}
+        className="flex flex-col flex-1 min-w-0 cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-t-lg"
+        aria-label={`Ir a la página de ${event.title}`}
+      >
+        <div className="relative aspect-video bg-muted flex items-center justify-center overflow-hidden shrink-0">
+          {hasValidImage ? (
+            <Image
+              src={imageUrl}
+              alt={event.title}
+              width={400}
+              height={225}
+              className="object-cover w-full h-full"
+            />
+          ) : (
+            <Calendar className="size-10 sm:size-12 text-muted-foreground/50" />
           )}
-        >
-          {statusLabel}
-        </span>
-      </div>
-      <CardHeader className="pb-2 px-4 sm:px-6 pt-3 sm:pt-4">
-        <CardTitle className="text-sm sm:text-base line-clamp-2">{event.title}</CardTitle>
-        <CardDescription className="line-clamp-2 text-xs sm:text-sm">{event.description}</CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-1.5 sm:space-y-2 text-xs sm:text-sm px-4 sm:px-6">
-        <div className="flex items-center gap-2 text-muted-foreground min-w-0">
-          <Calendar className="size-3.5 sm:size-4 shrink-0" />
-          <span className="truncate">{formatDate(event.date)}</span>
+          <span
+            className={cn(
+              "absolute top-2 right-2 rounded-full px-2.5 py-0.5 text-xs font-medium shadow-sm",
+              statusClassName
+            )}
+          >
+            {statusLabel}
+          </span>
         </div>
-        <div className="flex items-center gap-2 text-muted-foreground min-w-0">
-          <Clock className="size-3.5 sm:size-4 shrink-0" />
-          <span className="truncate">{event.time}</span>
-        </div>
-        <div className="flex items-center gap-2 text-muted-foreground min-w-0">
-          <MapPin className="size-3.5 sm:size-4 shrink-0" />
-          <span className="truncate">{event.location}</span>
-        </div>
-      </CardContent>
+        <CardHeader className="pb-2 px-4 sm:px-6 pt-3 sm:pt-4">
+          <CardTitle className="text-sm sm:text-base line-clamp-2 group-hover:text-primary transition-colors">{event.title}</CardTitle>
+          <CardDescription className="line-clamp-2 text-xs sm:text-sm">{event.description}</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-1.5 sm:space-y-2 text-xs sm:text-sm px-4 sm:px-6">
+          <div className="flex items-center gap-2 text-muted-foreground min-w-0">
+            <Calendar className="size-3.5 sm:size-4 shrink-0" />
+            <span className="truncate">{formatDate(event.date)}</span>
+          </div>
+          <div className="flex items-center gap-2 text-muted-foreground min-w-0">
+            <Clock className="size-3.5 sm:size-4 shrink-0" />
+            <span className="truncate">{event.time}</span>
+          </div>
+          <div className="flex items-center gap-2 text-muted-foreground min-w-0">
+            <MapPin className="size-3.5 sm:size-4 shrink-0" />
+            <span className="truncate">{event.location}</span>
+          </div>
+        </CardContent>
+      </Link>
       <CardFooter className="flex flex-col sm:flex-row flex-wrap gap-2 px-4 sm:px-6 pb-4">
-        <Button variant="outline" size="sm" className="w-full sm:w-auto min-h-9" asChild>
-          <Link href={`/event/${event.slug}`} className="inline-flex items-center justify-center">
-            <QrCode className="size-4 mr-1 shrink-0" />
-            <span className="truncate">Ver página / QR</span>
-          </Link>
-        </Button>
+        {onShowQr && (
+          <Button
+            variant="outline"
+            size="sm"
+            className="w-full sm:w-auto min-h-9"
+            onClick={(e) => {
+              e.preventDefault();
+              onShowQr(event);
+            }}
+            title="Ver código QR"
+            aria-label="Ver código QR"
+          >
+            <QrCode className="size-4 sm:mr-1.5 shrink-0" />
+            <span className="truncate hidden sm:inline">Ver QR</span>
+          </Button>
+        )}
         {onViewAttendees && (
           <Button variant="outline" size="sm" className="w-full sm:w-auto min-h-9 shrink-0" onClick={() => onViewAttendees(event)}>
             <Users className="size-4 mr-1 shrink-0" />
