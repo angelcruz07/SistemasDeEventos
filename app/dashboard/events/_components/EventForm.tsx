@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import {
   Card,
   CardHeader,
@@ -83,8 +83,6 @@ export function EventForm({ event, onSuccess, onCancel, variant = "card", formId
   const [formData, setFormData] = useState<FormData>(() =>
     event ? eventToFormData(event) : { ...emptyForm }
   );
-  const locationInputRef = useRef<HTMLInputElement>(null);
-  const autocompleteInitialized = useRef(false);
 
   const isEditing = !!event;
 
@@ -125,37 +123,6 @@ export function EventForm({ event, onSuccess, onCancel, variant = "card", formId
     }
     setError(null);
   }, [event?.id]);
-
-  // Inicializar Google Places Autocomplete en el campo ubicación cuando el script esté cargado
-  useEffect(() => {
-    if (autocompleteInitialized.current) return;
-    let attempts = 0;
-    const maxAttempts = 40; // ~12 s
-    const id = setInterval(() => {
-      attempts++;
-      if (attempts > maxAttempts) {
-        clearInterval(id);
-        return;
-      }
-      if (!locationInputRef.current) return;
-      const g = (window as unknown as { google?: { maps?: { places?: { Autocomplete: new (input: HTMLInputElement, opts?: { types?: string[]; language?: string }) => { addListener: (event: string, fn: () => void) => void; getPlace: () => { formatted_address?: string; name?: string } } } } } }).google;
-      if (!g?.maps?.places) return;
-      clearInterval(id);
-      const input = locationInputRef.current;
-      if (!input || autocompleteInitialized.current) return;
-      const autocomplete = new g.maps.places.Autocomplete(input, {
-        types: ["establishment", "geocode"],
-        language: "es",
-      });
-      autocomplete.addListener("place_changed", () => {
-        const place = autocomplete.getPlace();
-        const address = place.formatted_address || place.name || "";
-        if (address) setFormData((prev) => ({ ...prev, location: address }));
-      });
-      autocompleteInitialized.current = true;
-    }, 300);
-    return () => clearInterval(id);
-  }, []);
 
   const handleChange = (field: keyof FormData, value: string | boolean) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
@@ -341,13 +308,11 @@ export function EventForm({ event, onSuccess, onCancel, variant = "card", formId
                 Ubicación
               </Label>
               <input
-                ref={locationInputRef}
                 id={id(formIdPrefix, "location")}
                 type="text"
-                placeholder="Buscar dirección o lugar en Google Maps"
+                placeholder="Ej: Sala de conferencias, dirección..."
                 value={formData.location}
                 onChange={(e) => handleChange("location", e.target.value)}
-                autoComplete="off"
                 className={cn(inputBase, "h-10 rounded-lg border-input")}
               />
             </div>
@@ -501,13 +466,11 @@ export function EventForm({ event, onSuccess, onCancel, variant = "card", formId
             <div className="space-y-2">
               <Label htmlFor={id(formIdPrefix, "location")}>Ubicación</Label>
               <input
-                ref={locationInputRef}
                 id={id(formIdPrefix, "location")}
                 type="text"
-                placeholder="Buscar dirección o lugar en Google Maps"
+                placeholder="Ej: Sala de conferencias, dirección..."
                 value={formData.location}
                 onChange={(e) => handleChange("location", e.target.value)}
-                autoComplete="off"
                 className={cn(inputBase, "rounded-md")}
               />
             </div>

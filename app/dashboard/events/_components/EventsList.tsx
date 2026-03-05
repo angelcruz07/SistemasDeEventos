@@ -7,7 +7,6 @@ import { EditEventModal } from "./EditEventModal";
 import { DeleteEventDialog } from "./DeleteEventDialog";
 import { EventAttendeesModal } from "./EventAttendeesModal";
 import { QrCodeModal } from "./QrCodeModal";
-import { GoogleMapsScript } from "./GoogleMapsScript";
 import { getEvents, deleteEvent } from "../_actions/event.actions";
 import type { Event } from "@/app/generated/prisma/client";
 import { Button } from "@/components/ui/button";
@@ -77,7 +76,6 @@ export function EventsList() {
 
   return (
     <div className="space-y-4 sm:space-y-6">
-      <GoogleMapsScript />
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <h2 className="text-base sm:text-lg font-semibold">Eventos programados</h2>
         <Button

@@ -5,6 +5,7 @@ CREATE TABLE "User" (
     "name" TEXT NOT NULL,
     "emailVerified" BOOLEAN NOT NULL DEFAULT false,
     "image" TEXT,
+    "role" TEXT NOT NULL DEFAULT 'user',
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
@@ -70,6 +71,7 @@ CREATE TABLE "Event" (
     "createdBy" TEXT NOT NULL,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
+    "isCancelled" BOOLEAN NOT NULL DEFAULT false,
 
     CONSTRAINT "Event_pkey" PRIMARY KEY ("id")
 );
@@ -81,6 +83,7 @@ CREATE TABLE "Attendance" (
     "guestName" TEXT NOT NULL,
     "guestEmail" TEXT NOT NULL,
     "numberOfGuests" INTEGER NOT NULL,
+    "responseType" TEXT NOT NULL DEFAULT 'confirmed',
     "confirmedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "Attendance_pkey" PRIMARY KEY ("id")

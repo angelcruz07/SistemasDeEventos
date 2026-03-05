@@ -4,6 +4,7 @@ import { useState } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { signIn } from "@/lib/auth-client"
+import { authErrorToSpanish } from "@/lib/error-messages"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -37,7 +38,7 @@ export function LoginForm() {
     })
 
     if (signInError) {
-      setError(signInError.message || "Credenciales inválidas")
+      setError(authErrorToSpanish(signInError.message) || "Credenciales inválidas")
       setIsLoading(false)
       return
     }

@@ -2,6 +2,7 @@
 
 import prisma from "@/app/lib/prisma";
 import { auth } from "@/lib/auth";
+import { serverErrorToSpanish } from "@/lib/error-messages";
 import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
 
@@ -92,7 +93,7 @@ export async function createEvent(data: CreateEventInput) {
       success: false,
       error: isEnvError
         ? "Revisa que DATABASE_URL esté en .env y que la base de datos esté en ejecución."
-        : message,
+        : serverErrorToSpanish(message, "Error al crear el evento"),
     };
   }
 }
@@ -107,10 +108,10 @@ export async function getEvents() {
     return { success: true, data: events };
   } catch (error) {
     console.error("Error fetching events:", error);
+    const message = error instanceof Error ? error.message : String(error);
     return {
       success: false,
-      error:
-        error instanceof Error ? error.message : "Error al obtener los eventos",
+      error: serverErrorToSpanish(message, "Error al obtener los eventos"),
     };
   }
 }
@@ -152,10 +153,10 @@ export async function updateEvent(data: UpdateEventInput) {
     return { success: true, data: event };
   } catch (error) {
     console.error("Error updating event:", error);
+    const message = error instanceof Error ? error.message : String(error);
     return {
       success: false,
-      error:
-        error instanceof Error ? error.message : "Error al actualizar el evento",
+      error: serverErrorToSpanish(message, "Error al actualizar el evento"),
     };
   }
 }
@@ -186,10 +187,10 @@ export async function deleteEvent(id: string) {
     return { success: true };
   } catch (error) {
     console.error("Error deleting event:", error);
+    const message = error instanceof Error ? error.message : String(error);
     return {
       success: false,
-      error:
-        error instanceof Error ? error.message : "Error al eliminar el evento",
+      error: serverErrorToSpanish(message, "Error al eliminar el evento"),
     };
   }
 }
@@ -209,10 +210,10 @@ export async function getEventById(id: string) {
     return { success: true, data: event };
   } catch (error) {
     console.error("Error fetching event:", error);
+    const message = error instanceof Error ? error.message : String(error);
     return {
       success: false,
-      error:
-        error instanceof Error ? error.message : "Error al obtener el evento",
+      error: serverErrorToSpanish(message, "Error al obtener el evento"),
     };
   }
 }
@@ -254,10 +255,10 @@ export async function getAttendancesForEvent(eventId: string) {
     return { success: true, data: { eventTitle: event.title, attendances } };
   } catch (error) {
     console.error("Error fetching attendances:", error);
+    const message = error instanceof Error ? error.message : String(error);
     return {
       success: false,
-      error:
-        error instanceof Error ? error.message : "Error al obtener los asistentes",
+      error: serverErrorToSpanish(message, "Error al obtener los asistentes"),
     };
   }
 }
@@ -270,10 +271,10 @@ export async function getEventBySlug(slug: string) {
     return { success: true, data: event };
   } catch (error) {
     console.error("Error fetching event by slug:", error);
+    const message = error instanceof Error ? error.message : String(error);
     return {
       success: false,
-      error:
-        error instanceof Error ? error.message : "Error al obtener el evento",
+      error: serverErrorToSpanish(message, "Error al obtener el evento"),
     };
   }
 }
@@ -297,16 +298,16 @@ export async function getEventBySlugWithAttendanceCount(slug: string) {
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     const isConnectionError =
-      message.includes("Can't reach") ||
-      message.includes("connection") ||
-      message.includes("ECONNREFUSED") ||
-      message.includes("connect");
+      message.toLowerCase().includes("can't reach") ||
+      message.toLowerCase().includes("connection") ||
+      message.toLowerCase().includes("econnrefused") ||
+      message.toLowerCase().includes("connect");
     console.error("Error fetching event by slug:", error);
     return {
       success: false,
       error: isConnectionError
         ? "No se puede conectar a la base de datos. Comprueba que PostgreSQL esté en ejecución y DATABASE_URL en .env."
-        : message,
+        : serverErrorToSpanish(message, "Error al obtener el evento"),
     };
   }
 }
@@ -364,10 +365,10 @@ export async function confirmAttendance(slug: string, data: ConfirmAttendanceInp
     return { success: true };
   } catch (error) {
     console.error("Error confirming attendance:", error);
+    const message = error instanceof Error ? error.message : String(error);
     return {
       success: false,
-      error:
-        error instanceof Error ? error.message : "Error al confirmar la asistencia.",
+      error: serverErrorToSpanish(message, "Error al confirmar la asistencia."),
     };
   }
 }

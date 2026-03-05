@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { authClient } from "@/lib/auth-client";
+import { authErrorToSpanish } from "@/lib/error-messages";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -42,7 +43,7 @@ export function SettingsForm({ user }: SettingsFormProps) {
     const { error } = await authClient.updateUser({ name });
 
     if (error) {
-      setNameError(error.message ?? "Error al actualizar");
+      setNameError(authErrorToSpanish(error.message) || "Error al actualizar");
     } else {
       setNameSuccess(true);
       setTimeout(() => setNameSuccess(false), 3000);
@@ -62,7 +63,7 @@ export function SettingsForm({ user }: SettingsFormProps) {
     });
 
     if (error) {
-      setPasswordError(error.message ?? "Error al cambiar contraseña");
+      setPasswordError(authErrorToSpanish(error.message) || "Error al cambiar contraseña");
     } else {
       setPasswordSuccess(true);
       setCurrentPassword("");

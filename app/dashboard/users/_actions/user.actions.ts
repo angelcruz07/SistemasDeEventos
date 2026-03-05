@@ -2,6 +2,7 @@
 
 import prisma from "@/app/lib/prisma";
 import { auth } from "@/lib/auth";
+import { serverErrorToSpanish } from "@/lib/error-messages";
 import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
 
@@ -55,9 +56,10 @@ export async function getUsers() {
     };
   } catch (error) {
     console.error("Error fetching users:", error);
+    const message = error instanceof Error ? error.message : String(error);
     return {
       success: false,
-      error: error instanceof Error ? error.message : "Error al obtener usuarios",
+      error: serverErrorToSpanish(message, "Error al obtener usuarios"),
     };
   }
 }
@@ -83,9 +85,10 @@ export async function updateUserRole(userId: string, newRole: string) {
     return { success: true };
   } catch (error) {
     console.error("Error updating user role:", error);
+    const message = error instanceof Error ? error.message : String(error);
     return {
       success: false,
-      error: error instanceof Error ? error.message : "Error al actualizar rol",
+      error: serverErrorToSpanish(message, "Error al actualizar rol"),
     };
   }
 }

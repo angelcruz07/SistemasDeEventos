@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { authClient } from "@/lib/auth-client";
+import { authErrorToSpanish } from "@/lib/error-messages";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -36,7 +37,7 @@ export default function LoginPage() {
     });
 
     if (signInError) {
-      setError(signInError.message ?? "Error al iniciar sesión");
+      setError(authErrorToSpanish(signInError.message) || "Error al iniciar sesión");
       setLoading(false);
     } else {
       router.push("/dashboard");

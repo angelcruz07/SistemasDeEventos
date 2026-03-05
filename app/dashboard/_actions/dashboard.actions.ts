@@ -2,6 +2,7 @@
 
 import prisma from "@/app/lib/prisma";
 import { auth } from "@/lib/auth";
+import { serverErrorToSpanish } from "@/lib/error-messages";
 import { headers } from "next/headers";
 
 export async function getDashboardStats() {
@@ -59,9 +60,10 @@ export async function getDashboardStats() {
     };
   } catch (error) {
     console.error("Error fetching dashboard stats:", error);
+    const message = error instanceof Error ? error.message : String(error);
     return {
       success: false,
-      error: error instanceof Error ? error.message : "Error al obtener estadísticas",
+      error: serverErrorToSpanish(message, "Error al obtener estadísticas"),
     };
   }
 }

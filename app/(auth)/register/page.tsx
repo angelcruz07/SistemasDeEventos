@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { authClient } from "@/lib/auth-client";
+import { authErrorToSpanish } from "@/lib/error-messages";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -38,7 +39,7 @@ export default function RegisterPage() {
     });
 
     if (signUpError) {
-      setError(signUpError.message ?? "Error al crear la cuenta");
+      setError(authErrorToSpanish(signUpError.message) || "Error al crear la cuenta");
       setLoading(false);
     } else {
       router.push("/dashboard");
