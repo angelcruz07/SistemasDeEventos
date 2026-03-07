@@ -5,10 +5,16 @@ import prisma from "@/app/lib/prisma";
 
 export const auth = betterAuth({
   baseURL: process.env.BETTER_AUTH_URL || "http://localhost:3000",
-  trustedOrigins: [
-    "https://sistemas-de-eventos.vercel.app",
-    "https://*.vercel.app",
-  ],
+  trustedOrigins: (_request) => {
+    const origins: string[] = [
+      "https://sistemas-de-eventos.vercel.app",
+      "http://localhost:3000",
+    ];
+    if (process.env.VERCEL_URL) {
+      origins.push(`https://${process.env.VERCEL_URL}`);
+    }
+    return origins;
+  },
   database: prismaAdapter(prisma, {
     provider: "postgresql",
   }),
