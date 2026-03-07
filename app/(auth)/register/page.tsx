@@ -33,14 +33,14 @@ export default function RegisterPage() {
       name,
       email,
       password,
-      callbackURL: typeof window !== "undefined" ? `${window.location.origin}/dashboard` : "/dashboard",
+      callbackURL: typeof window !== "undefined" ? `${window.location.origin}/dashboard/events` : "/dashboard/events",
     });
 
     if (signUpError) {
       setError(authErrorToSpanish(signUpError.message) || "Error al crear la cuenta");
       setLoading(false);
     } else {
-      window.location.href = "/dashboard";
+      window.location.href = "/dashboard/events";
     }
   };
 

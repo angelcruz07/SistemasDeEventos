@@ -31,14 +31,14 @@ export default function LoginPage() {
     const { error: signInError } = await authClient.signIn.email({
       email,
       password,
-      callbackURL: typeof window !== "undefined" ? `${window.location.origin}/dashboard` : "/dashboard",
+      callbackURL: typeof window !== "undefined" ? `${window.location.origin}/dashboard/events` : "/dashboard/events",
     });
 
     if (signInError) {
       setError(authErrorToSpanish(signInError.message) || "Error al iniciar sesión");
       setLoading(false);
     } else {
-      window.location.href = "/dashboard";
+      window.location.href = "/dashboard/events";
     }
   };
 
