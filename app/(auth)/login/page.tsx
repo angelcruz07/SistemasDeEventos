@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { authClient } from "@/lib/auth-client";
 import { authErrorToSpanish } from "@/lib/error-messages";
@@ -18,6 +19,7 @@ import {
 import { AlertCircle, Loader2, LogIn } from "lucide-react";
 
 export default function LoginPage() {
+  const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -31,14 +33,14 @@ export default function LoginPage() {
     const { error: signInError } = await authClient.signIn.email({
       email,
       password,
-      callbackURL: typeof window !== "undefined" ? `${window.location.origin}/dashboard/events` : "/dashboard/events",
+      callbackURL: "/dashboard",
     });
 
     if (signInError) {
       setError(authErrorToSpanish(signInError.message) || "Error al iniciar sesión");
       setLoading(false);
     } else {
-      window.location.href = "/dashboard/events";
+      router.push("/dashboard");
     }
   };
 
