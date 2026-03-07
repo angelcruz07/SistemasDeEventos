@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { authClient } from "@/lib/auth-client";
 import { authErrorToSpanish } from "@/lib/error-messages";
@@ -19,7 +18,6 @@ import {
 import { AlertCircle, Loader2, UserPlus } from "lucide-react";
 
 export default function RegisterPage() {
-  const router = useRouter();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -35,14 +33,14 @@ export default function RegisterPage() {
       name,
       email,
       password,
-      callbackURL: "/dashboard",
+      callbackURL: typeof window !== "undefined" ? `${window.location.origin}/dashboard` : "/dashboard",
     });
 
     if (signUpError) {
       setError(authErrorToSpanish(signUpError.message) || "Error al crear la cuenta");
       setLoading(false);
     } else {
-      router.push("/dashboard");
+      window.location.href = "/dashboard";
     }
   };
 
