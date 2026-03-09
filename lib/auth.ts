@@ -3,14 +3,20 @@ import { prismaAdapter } from "better-auth/adapters/prisma";
 import { nextCookies } from "better-auth/next-js";
 import prisma from "@/app/lib/prisma";
 
-const baseURL = process.env.BETTER_AUTH_URL || "http://localhost:3000";
+const baseURL =
+  process.env.BETTER_AUTH_URL ||
+  (process.env.VERCEL_URL
+    ? `https://${process.env.VERCEL_URL}`
+    : "http://localhost:3000");
 const isProduction = baseURL.startsWith("https://");
 
 export const auth = betterAuth({
+  appName: "Sistema de Reservas",
   baseURL,
   trustedOrigins: [
     baseURL,
     process.env.NEXT_PUBLIC_APP_URL,
+    process.env.VERCEL_URL && `https://${process.env.VERCEL_URL}`,
     "http://localhost:3000",
     "http://127.0.0.1:3000",
   ].filter(Boolean) as string[],
@@ -33,10 +39,8 @@ export const auth = betterAuth({
   session: {
     expiresIn: 60 * 60 * 24 * 7, // 7 days
     updateAge: 60 * 60 * 24, // 1 day
-    cookieCache: {
-      enabled: true,
-      maxAge: 5 * 60, // 5 minutos; ayuda a que getSession lea la sesión en RSC
-    },
+    // cookieCache deshabilitado: con enabled=true, getSession() en RSC puede devolver null en producción (bug better-auth #7008)
+    // cookieCache: { enabled: true, maxAge: 5 * 60 },
   },
   advanced: {
     useSecureCookies: isProduction,
@@ -44,6 +48,7 @@ export const auth = betterAuth({
       session_token: {
         attributes: {
           path: "/",
+          sameSite: "lax",
         },
       },
     },

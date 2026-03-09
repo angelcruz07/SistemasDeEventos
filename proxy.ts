@@ -1,18 +1,17 @@
 import { NextRequest, NextResponse } from "next/server"
+import { getSessionCookie } from "better-auth/cookies"
 
 const protectedRoutes = ["/dashboard"]
-const authRoutes = ["/login", "/register"]
 
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl
-  
-  const sessionCookie = request.cookies.get("better-auth.session_token")?.value
+
+  const sessionCookie = getSessionCookie(request)
   const isAuthenticated = !!sessionCookie
 
   const isProtectedRoute = protectedRoutes.some((route) =>
     pathname.startsWith(route)
   )
-  const isAuthRoute = authRoutes.some((route) => pathname.startsWith(route))
 
   if (isProtectedRoute && !isAuthenticated) {
     const loginUrl = new URL("/login", request.url)
@@ -20,10 +19,9 @@ export async function proxy(request: NextRequest) {
     return NextResponse.redirect(loginUrl)
   }
 
-  if (isAuthRoute && isAuthenticated) {
-    return NextResponse.redirect(new URL("/dashboard", request.url))
-  }
-
+  // No redirigir a /dashboard solo por tener cookie: la cookie puede estar expirada/inválida
+  // y provocaría bucle con el layout del dashboard (getSession null -> redirect login -> proxy -> dashboard).
+  // Si ya hay sesión válida, el layout de (auth) redirige a /dashboard.
   return NextResponse.next()
 }
 
