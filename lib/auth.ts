@@ -33,9 +33,20 @@ export const auth = betterAuth({
   session: {
     expiresIn: 60 * 60 * 24 * 7, // 7 days
     updateAge: 60 * 60 * 24, // 1 day
+    cookieCache: {
+      enabled: true,
+      maxAge: 5 * 60, // 5 minutos; ayuda a que getSession lea la sesión en RSC
+    },
   },
   advanced: {
     useSecureCookies: isProduction,
+    cookies: {
+      session_token: {
+        attributes: {
+          path: "/",
+        },
+      },
+    },
   },
   databaseHooks: {
     user: {
