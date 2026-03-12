@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { authClient } from "@/lib/auth-client";
 import { authErrorToSpanish } from "@/lib/error-messages";
+import { MIN_PASSWORD_LENGTH } from "@/lib/password";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -81,7 +82,7 @@ export default function LoginPage() {
               onChange={(e) => setPassword(e.target.value)}
               required
               autoComplete="current-password"
-              minLength={6}
+              minLength={MIN_PASSWORD_LENGTH}
             />
           </div>
           <Button type="submit" className="w-full h-10" disabled={loading}>

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { signUp } from "@/lib/auth-client"
 import { authErrorToSpanish } from "@/lib/error-messages"
+import { MIN_PASSWORD_LENGTH, PASSWORD_MIN_MESSAGE } from "@/lib/password"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -106,8 +107,9 @@ export function RegisterForm() {
               id="password"
               name="password"
               type="password"
-              placeholder="••••••••"
+              placeholder={`Mínimo ${MIN_PASSWORD_LENGTH} caracteres`}
               required
+              minLength={MIN_PASSWORD_LENGTH}
               disabled={isLoading}
             />
           </div>

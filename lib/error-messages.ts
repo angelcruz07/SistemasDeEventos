@@ -3,6 +3,8 @@
  * para mostrarlos al usuario.
  */
 
+import { PASSWORD_MIN_MESSAGE } from "@/lib/password";
+
 const AUTH_ERROR_MAP: Record<string, string> = {
   "invalid credentials": "Credenciales incorrectas",
   "invalid email or password": "Correo o contraseña incorrectos",
@@ -13,8 +15,8 @@ const AUTH_ERROR_MAP: Record<string, string> = {
   "user already exists": "Este correo ya está registrado",
   "email already exists": "Este correo ya está registrado",
   "account already exists": "Ya existe una cuenta con este correo",
-  "password is too short": "La contraseña es demasiado corta",
-  "password must be at least": "La contraseña debe tener al menos",
+  "password is too short": PASSWORD_MIN_MESSAGE,
+  "password must be at least": PASSWORD_MIN_MESSAGE,
   "invalid email": "Correo electrónico no válido",
   "user not found": "Usuario no encontrado",
   "email not found": "Correo no encontrado",

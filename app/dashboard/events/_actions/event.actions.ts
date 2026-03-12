@@ -265,8 +265,8 @@ export async function getAttendancesForEvent(eventId: string) {
 
 export async function getEventBySlug(slug: string) {
   try {
-    const event = await prisma.event.findUnique({
-      where: { slug },
+    const event = await prisma.event.findFirst({
+      where: { slug, isCancelled: false },
     });
     return { success: true, data: event };
   } catch (error) {
@@ -281,8 +281,8 @@ export async function getEventBySlug(slug: string) {
 
 export async function getEventBySlugWithAttendanceCount(slug: string) {
   try {
-    const event = await prisma.event.findUnique({
-      where: { slug },
+    const event = await prisma.event.findFirst({
+      where: { slug, isCancelled: false },
       include: {
         _count: { select: { attendances: true } },
       },
@@ -323,11 +323,11 @@ export interface ConfirmAttendanceInput {
 
 export async function confirmAttendance(slug: string, data: ConfirmAttendanceInput) {
   try {
-    const event = await prisma.event.findUnique({
-      where: { slug },
+    const event = await prisma.event.findFirst({
+      where: { slug, isCancelled: false },
     });
     if (!event) {
-      return { success: false, error: "Evento no encontrado." };
+      return { success: false, error: "Evento no encontrado o ha sido cancelado." };
     }
 
     const numGuests = Math.max(1, Math.min(Number(data.numberOfGuests) || 1, 50));
