@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { v2 as cloudinary } from "cloudinary";
+import { auth } from "@/lib/auth";
 
 const MAX_SIZE_MB = 5;
 const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"];
@@ -15,6 +16,14 @@ function getCloudinaryConfig() {
 }
 
 export async function POST(request: Request) {
+  const session = await auth.api.getSession({ headers: request.headers });
+  if (!session) {
+    return NextResponse.json(
+      { error: "Debes iniciar sesión para subir imágenes." },
+      { status: 401 }
+    );
+  }
+
   const config = getCloudinaryConfig();
   if (!config) {
     return NextResponse.json(

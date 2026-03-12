@@ -9,7 +9,7 @@ export interface Event
     location: string;
     imageUrl: string;
     slug: string;
-    createBy: string;
+    createdBy: string;
     createdAt: Date;
     updatedAt: Date;
 }
