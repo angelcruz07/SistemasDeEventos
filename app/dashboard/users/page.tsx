@@ -1,13 +1,10 @@
-import { auth } from "@/lib/auth";
-import { headers } from "next/headers";
+import { getSession } from "@/lib/auth-server";
 import { redirect } from "next/navigation";
 import prisma from "@/app/lib/prisma";
 import { UsersTable } from "./_components/UsersTable";
 
 export default async function UsersPage() {
-  const session = await auth.api.getSession({
-    headers: await headers(),
-  });
+  const session = await getSession();
 
   if (!session) redirect("/login");
 

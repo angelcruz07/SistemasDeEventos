@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { v2 as cloudinary } from "cloudinary";
-import { auth } from "@/lib/auth";
+import { getSession } from "@/lib/auth-server";
 
 const MAX_SIZE_MB = 5;
 const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"];
@@ -16,7 +16,7 @@ function getCloudinaryConfig() {
 }
 
 export async function POST(request: Request) {
-  const session = await auth.api.getSession({ headers: request.headers });
+  const session = await getSession();
   if (!session) {
     return NextResponse.json(
       { error: "Debes iniciar sesión para subir imágenes." },

@@ -1,15 +1,12 @@
 "use server";
 
 import prisma from "@/app/lib/prisma";
-import { auth } from "@/lib/auth";
+import { getSession } from "@/lib/auth-server";
 import { serverErrorToSpanish } from "@/lib/error-messages";
-import { headers } from "next/headers";
 
 export async function getDashboardStats() {
   try {
-    const session = await auth.api.getSession({
-      headers: await headers(),
-    });
+    const session = await getSession();
 
     if (!session) {
       return {
