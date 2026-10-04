@@ -38,14 +38,14 @@ Rules for every PR: Strict TDD (RED test, GREEN, REFACTOR) for `lib/ticketing/*`
 
 ### PR0: Fixes, Vitest, scripts (~200 lines, base: main/tracker)
 Files: `app/dashboard/_actions/event.actions.ts` (path per repo), `package.json`, `vitest.config.mts`, `lib/datetime.ts` + `lib/datetime.test.ts`; delete `update-event.action.ts`, `delete-event.action.ts`, `get-event.action.ts`.
-- [ ] 0.1 STOP-AND-REPORT: working tree has uncommitted `.env.template`, `bun.lock`, `docker-compose.yml`. Do NOT commit, stash, or discard them; report to the orchestrator and wait. Keep PR0 commits limited to the files above.
-- [ ] 0.2 `bun add -d vitest@^3.2 vite-tsconfig-paths@^5`; create `vitest.config.mts` (node env, `include: ["lib/**/*.test.ts"]`, tsconfigPaths).
-- [ ] 0.3 Add scripts: `test`, `db:migrate` (`prisma migrate dev && prisma generate`), `db:deploy`, `db:generate`.
-- [ ] 0.4 RED: `lib/datetime.test.ts` for `formatMx` (America/Mexico_City, UTC boundary cases). GREEN: `lib/datetime.ts`.
-- [ ] 0.5 `updateEvent`: remove `generateSlug` and `slug` from update data (spec: Slug stability).
-- [ ] 0.6 `updateEvent`: remove `isEventDateTimeInPast` block; keep in `createEvent` (spec: Editing past events).
-- [ ] 0.7 `deleteEvent`: remove manual `confirmation`/`attendance` deletes (cascade).
-- [ ] 0.8 Delete the three empty action files; fix imports if any.
+- [x] 0.1 STOP-AND-REPORT: working tree has uncommitted `.env.template`, `bun.lock`, `docker-compose.yml`. Do NOT commit, stash, or discard them; report to the orchestrator and wait. Keep PR0 commits limited to the files above.
+- [x] 0.2 `bun add -d vitest@^3.2 vite-tsconfig-paths@^5`; create `vitest.config.mts` (node env, `include: ["lib/**/*.test.ts"]`, tsconfigPaths).
+- [x] 0.3 Add scripts: `test`, `db:migrate` (`prisma migrate dev && prisma generate`), `db:deploy`, `db:generate`.
+- [x] 0.4 RED: `lib/datetime.test.ts` for `formatMx` (America/Mexico_City, UTC boundary cases). GREEN: `lib/datetime.ts`.
+- [x] 0.5 `updateEvent`: remove `generateSlug` and `slug` from update data (spec: Slug stability).
+- [x] 0.6 `updateEvent`: remove `isEventDateTimeInPast` block; keep in `createEvent` (spec: Editing past events).
+- [x] 0.7 `deleteEvent`: remove manual `confirmation`/`attendance` deletes (cascade).
+- [x] 0.8 Delete the three empty action files; fix imports if any.
 - Verify: tsc, lint, `bunx vitest run`; manual: edit title keeps slug; edit event started 1h ago saves.
 - Rollback: revert PR (no schema change).
 
