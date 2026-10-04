@@ -1,0 +1,32 @@
+schema: spec-driven
+
+context: |
+  Tech stack: Next.js 16 (App Router, server actions), React 19, TypeScript, Prisma 7 + PostgreSQL 17, better-auth, Tailwind 4, Cloudinary (public images), Bun.
+  Architecture: feature folders under app/ (_actions, _components); server actions return {success, data|error}; hand-rolled validation (no zod).
+  Testing: none yet; Vitest introduced by change event-ticketing-spei (Slice 0) for pure domain logic in lib/.
+  Style: identifiers, comments, and SDD artifacts in English; UI copy in Spanish (lib/error-messages.ts). Display timezone America/Mexico_City.
+
+rules:
+  proposal:
+    - Include rollback plan for risky changes
+    - Include delivery slices with Review Workload Forecast when work exceeds 400 changed lines
+  specs:
+    - Use Given/When/Then for scenarios
+    - Use RFC 2119 keywords (MUST, SHALL, SHOULD, MAY)
+  design:
+    - Include sequence diagrams for complex flows
+    - Document architecture decisions with rationale
+  tasks:
+    - Group by phase, use hierarchical numbering
+    - Keep tasks completable in one session
+  apply:
+    rules:
+      - Follow existing code patterns
+    tdd: true
+    test_command: "bunx vitest run"
+  verify:
+    test_command: "bunx vitest run"
+    build_command: "bun run build"
+    coverage_threshold: 0
+  archive:
+    - Warn before merging destructive deltas
