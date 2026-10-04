@@ -163,7 +163,7 @@ export function EventForm({ event, onSuccess, onCancel, variant = "card", formId
       setLoading(false);
       return;
     }
-    if (isEventDateInPast(dateValue, timeValue)) {
+    if (!isEditing && isEventDateInPast(dateValue, timeValue)) {
       setError("No puedes usar una fecha u hora pasada. Elige una fecha y hora futuras.");
       setLoading(false);
       return;
@@ -258,7 +258,7 @@ export function EventForm({ event, onSuccess, onCancel, variant = "card", formId
                   id={id(formIdPrefix, "date")}
                   type="date"
                   value={formData.date}
-                  min={today}
+                  min={isEditing ? undefined : today}
                   onChange={(e) => handleChange("date", e.target.value)}
                   required
                   className="h-10 rounded-lg border-input"
@@ -433,7 +433,7 @@ export function EventForm({ event, onSuccess, onCancel, variant = "card", formId
                   id={id(formIdPrefix, "date")}
                   type="date"
                   value={formData.date}
-                  min={today}
+                  min={isEditing ? undefined : today}
                   onChange={(e) => handleChange("date", e.target.value)}
                   required
                 />
