@@ -126,21 +126,13 @@ export async function updateEvent(data: UpdateEventInput) {
         error: "No tienes permiso para editar este evento.",
       };
     }
-    if (isEventDateTimeInPast(data.date, data.time)) {
-      return {
-        success: false,
-        error: "No puedes usar una fecha u hora pasada. Elige una fecha y hora futuras.",
-      };
-    }
     const { id, isCancelled, ...rest } = data;
-    const slug = generateSlug(rest.title);
 
     const event = await prisma.event.update({
       where: { id },
       data: {
         ...rest,
         date: new Date(rest.date),
-        slug,
         ...(typeof isCancelled === "boolean" && { isCancelled }),
       },
     });
@@ -171,9 +163,6 @@ export async function deleteEvent(id: string) {
         error: "No tienes permiso para eliminar este evento.",
       };
     }
-
-    await prisma.confirmation.deleteMany({ where: { eventId: id } });
-    await prisma.attendance.deleteMany({ where: { eventId: id } });
 
     await prisma.event.delete({
       where: { id },
