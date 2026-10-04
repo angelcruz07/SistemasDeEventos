@@ -126,13 +126,19 @@ export async function updateEvent(data: UpdateEventInput) {
         error: "No tienes permiso para editar este evento.",
       };
     }
-    const { id, isCancelled, ...rest } = data;
+    const { id, isCancelled } = data;
 
+    // Explicit whitelist: server actions are public endpoints, so never spread
+    // client input (it could carry slug, userId, etc.).
     const event = await prisma.event.update({
       where: { id },
       data: {
-        ...rest,
-        date: new Date(rest.date),
+        title: data.title,
+        description: data.description,
+        date: new Date(data.date),
+        time: data.time,
+        location: data.location,
+        imageUrl: data.imageUrl || "",
         ...(typeof isCancelled === "boolean" && { isCancelled }),
       },
     });
