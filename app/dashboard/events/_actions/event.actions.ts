@@ -212,8 +212,20 @@ export async function getEventById(id: string) {
 
 export async function getEventBySlug(slug: string) {
   try {
+    // Public, unauthenticated lookup: whitelist fields so capacity and SPEI
+    // bank details never reach the browser by accident.
     const event = await prisma.event.findFirst({
       where: { slug, isCancelled: false },
+      select: {
+        id: true,
+        slug: true,
+        title: true,
+        description: true,
+        date: true,
+        time: true,
+        location: true,
+        imageUrl: true,
+      },
     });
     return { success: true, data: event };
   } catch (error) {
