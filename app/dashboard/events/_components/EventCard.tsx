@@ -12,7 +12,6 @@ interface EventCardProps {
   event: Event;
   onEdit: (event: Event) => void;
   onDelete: (event: Event) => void;
-  onViewAttendees?: (event: Event) => void;
   onShowQr?: (event: Event) => void;
 }
 
@@ -64,7 +63,7 @@ function formatDate(date: Date): string {
   });
 }
 
-export function EventCard({ event, onEdit, onDelete, onViewAttendees, onShowQr }: EventCardProps) {
+export function EventCard({ event, onEdit, onDelete, onShowQr }: EventCardProps) {
   const imageUrl = event.imageUrl?.trim();
   const hasValidImage = imageUrl && (imageUrl.startsWith("http://") || imageUrl.startsWith("https://"));
   const status = getEventStatus(event);
@@ -134,12 +133,12 @@ export function EventCard({ event, onEdit, onDelete, onViewAttendees, onShowQr }
             <span className="truncate hidden sm:inline">Ver QR</span>
           </Button>
         )}
-        {onViewAttendees && (
-          <Button variant="outline" size="sm" className="w-full sm:w-auto min-h-9 shrink-0" onClick={() => onViewAttendees(event)}>
+        <Button variant="outline" size="sm" className="w-full sm:w-auto min-h-9 shrink-0" asChild>
+          <Link href={`/dashboard/events/${event.id}/ticketing`}>
             <Users className="size-4 mr-1 shrink-0" />
-            Ver asistentes
-          </Button>
-        )}
+            Boletos
+          </Link>
+        </Button>
         <Button variant="outline" size="sm" className="w-full sm:w-auto min-h-9 shrink-0" onClick={() => onEdit(event)}>
           <Pencil className="size-4 mr-1 shrink-0" />
           Editar

@@ -3,6 +3,7 @@
 import prisma from "@/app/lib/prisma";
 import { getSession } from "@/lib/auth-server";
 import { serverErrorToSpanish } from "@/lib/error-messages";
+import type { TicketStatus } from "@/app/generated/prisma/client";
 
 export async function getDashboardStats() {
   try {
@@ -17,22 +18,34 @@ export async function getDashboardStats() {
 
     const userId = session.user.id;
 
-    const [eventCount, attendanceCount, upcomingEventCount] = await Promise.all([
+    const [eventCount, ticketGroups, upcomingEventCount] = await Promise.all([
       prisma.event.count({ where: { userId } }),
-      prisma.attendance.count({
+      prisma.ticket.groupBy({
+        by: ["status"],
         where: { event: { userId } },
+        _count: { _all: true },
       }),
       prisma.event.count({
         where: { userId, date: { gte: new Date() } },
       }),
     ]);
 
+    const countFor = (...statuses: TicketStatus[]) =>
+      ticketGroups
+        .filter((g) => statuses.includes(g.status))
+        .reduce((sum, g) => sum + g._count._all, 0);
+    // Tickets that hold a spot: paid or already checked in.
+    const paidTicketCount = countFor("PAID", "CHECKED_IN");
+    const pendingTicketCount = countFor("PENDING_VALIDATION");
+
     const recentEvents = await prisma.event.findMany({
       where: { userId },
       take: 5,
       orderBy: { createdAt: "desc" },
       include: {
-        _count: { select: { attendances: true } },
+        _count: {
+          select: { tickets: { where: { status: { in: ["PAID", "CHECKED_IN"] } } } },
+        },
         user: { select: { name: true } },
       },
     });
@@ -41,7 +54,8 @@ export async function getDashboardStats() {
       success: true,
       data: {
         eventCount,
-        attendanceCount,
+        paidTicketCount,
+        pendingTicketCount,
         upcomingEventCount,
         recentEvents: recentEvents.map((e) => ({
           id: e.id,
@@ -50,7 +64,7 @@ export async function getDashboardStats() {
           time: e.time,
           location: e.location,
           slug: e.slug,
-          attendanceCount: e._count.attendances,
+          paidTicketCount: e._count.tickets,
           createdBy: e.user.name,
         })),
       },

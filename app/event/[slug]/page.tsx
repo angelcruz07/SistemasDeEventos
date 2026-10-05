@@ -2,12 +2,11 @@ import { headers } from "next/headers";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import QRCode from "qrcode";
-import { getEventBySlugWithAttendanceCount } from "@/app/dashboard/events/_actions/event.actions";
+import { getEventBySlug } from "@/app/dashboard/events/_actions/event.actions";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Calendar, MapPin, Clock, ArrowLeft, QrCode, Users } from "lucide-react";
+import { Calendar, MapPin, Clock, ArrowLeft, QrCode } from "lucide-react";
 import Image from "next/image";
-import { ConfirmAttendanceForm } from "./_components/ConfirmAttendanceForm";
 
 function formatDate(date: Date): string {
   return new Date(date).toLocaleDateString("es-ES", {
@@ -24,13 +23,13 @@ export default async function EventPage({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
-  const result = await getEventBySlugWithAttendanceCount(slug);
+  const result = await getEventBySlug(slug);
 
   if (!result.success || !result.data) {
     notFound();
   }
 
-  const { event, attendanceCount } = result.data;
+  const event = result.data;
   if (!event) notFound();
 
   // URL base: variable de entorno en producción; headers en desarrollo sin env
@@ -95,14 +94,6 @@ export default async function EventPage({
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-3 sm:space-y-4 px-4 sm:px-6">
-                {attendanceCount > 0 && (
-                  <div className="flex items-center gap-3 text-muted-foreground">
-                    <Users className="size-4 sm:size-5 shrink-0" />
-                    <span>
-                      {attendanceCount} {attendanceCount === 1 ? "persona ha confirmado" : "personas han confirmado"}
-                    </span>
-                  </div>
-                )}
                 <div className="flex items-center gap-3 text-muted-foreground min-w-0">
                   <Calendar className="size-4 sm:size-5 shrink-0" />
                   <span className="break-words">{formatDate(event.date)}</span>
@@ -118,7 +109,6 @@ export default async function EventPage({
               </CardContent>
             </Card>
 
-            <ConfirmAttendanceForm eventSlug={event.slug} eventTitle={event.title} />
           </div>
 
           <div className="space-y-4">

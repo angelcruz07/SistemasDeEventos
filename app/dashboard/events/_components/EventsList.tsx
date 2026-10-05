@@ -5,7 +5,6 @@ import { EventCard } from "./EventCard";
 import { CreateEventModal } from "./CreateEventModal";
 import { EditEventModal } from "./EditEventModal";
 import { DeleteEventDialog } from "./DeleteEventDialog";
-import { EventAttendeesModal } from "./EventAttendeesModal";
 import { QrCodeModal } from "./QrCodeModal";
 import { getEvents, deleteEvent } from "../_actions/event.actions";
 import type { Event } from "@/app/generated/prisma/client";
@@ -18,7 +17,6 @@ export function EventsList() {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [editingEvent, setEditingEvent] = useState<Event | null>(null);
   const [eventToDelete, setEventToDelete] = useState<Event | null>(null);
-  const [eventAttendees, setEventAttendees] = useState<Event | null>(null);
   const [eventForQr, setEventForQr] = useState<Event | null>(null);
   const [deleting, setDeleting] = useState(false);
 
@@ -111,7 +109,6 @@ export function EventsList() {
                 event={event}
                 onEdit={handleEdit}
                 onDelete={handleDeleteClick}
-                onViewAttendees={(e) => setEventAttendees(e)}
                 onShowQr={(e) => setEventForQr(e)}
               />
             ))}
@@ -137,12 +134,6 @@ export function EventsList() {
         onConfirm={handleDeleteConfirm}
         onCancel={handleDeleteCancel}
         loading={deleting}
-      />
-
-      <EventAttendeesModal
-        open={!!eventAttendees}
-        event={eventAttendees}
-        onClose={() => setEventAttendees(null)}
       />
 
       <QrCodeModal

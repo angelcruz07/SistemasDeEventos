@@ -51,7 +51,7 @@ export default async function DashboardPage() {
       </div>
 
       {/* Stats */}
-      <div className="grid gap-4 grid-cols-1 sm:grid-cols-3">
+      <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardHeader className="pb-2">
             <CardDescription className="flex items-center gap-2">
@@ -67,11 +67,22 @@ export default async function DashboardPage() {
           <CardHeader className="pb-2">
             <CardDescription className="flex items-center gap-2">
               <Users className="size-4" />
-              Asistencias confirmadas
+              Boletos pagados
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <p className="text-3xl font-bold">{stats?.attendanceCount ?? 0}</p>
+            <p className="text-3xl font-bold">{stats?.paidTicketCount ?? 0}</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardDescription className="flex items-center gap-2">
+              <Clock className="size-4" />
+              Pendientes de validar
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <p className="text-3xl font-bold">{stats?.pendingTicketCount ?? 0}</p>
           </CardContent>
         </Card>
         <Card>
@@ -137,8 +148,8 @@ export default async function DashboardPage() {
                     </div>
                   </div>
                   <div className="shrink-0 text-right">
-                    <p className="text-sm font-medium">{event.attendanceCount}</p>
-                    <p className="text-xs text-muted-foreground">asistencias</p>
+                    <p className="text-sm font-medium">{event.paidTicketCount}</p>
+                    <p className="text-xs text-muted-foreground">boletos pagados</p>
                   </div>
                 </Link>
               ))}
