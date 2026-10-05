@@ -8,14 +8,14 @@ datasource db {
 }
 
 model User {
-  id            String    @id @default(uuid())
-  email         String    @unique
+  id            String   @id @default(uuid())
+  email         String   @unique
   name          String
-  emailVerified Boolean   @default(false)
+  emailVerified Boolean  @default(false)
   image         String?
-  role          String    @default("user")
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  role          String   @default("user")
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
   sessions Session[]
   accounts Account[]
@@ -62,6 +62,21 @@ model Verification {
   updatedAt  DateTime @updatedAt
 }
 
+enum TicketStatus {
+  PENDING_RECEIPT
+  PENDING_VALIDATION
+  PAID
+  CHECKED_IN
+  REJECTED
+  CANCELLED
+}
+
+enum PaymentMethod {
+  SPEI
+  CASH
+  FREE
+}
+
 model Event {
   id          String   @id @default(uuid())
   userId      String
@@ -77,29 +92,67 @@ model Event {
   updatedAt   DateTime @updatedAt
   isCancelled Boolean  @default(false)
 
-  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
-  attendances   Attendance[]
-  confirmations Confirmation[]
+  priceCents       Int     @default(0)
+  currency         String  @default("MXN")
+  allowSpei        Boolean @default(true)
+  allowCash        Boolean @default(false)
+  speiClabe        String?
+  speiBank         String?
+  speiBeneficiary  String?
+  capacity         Int? // internal, never public
+  displayCapacity  Int? // marketing number, optional
+  registrationOpen Boolean @default(true)
+  formSchema       Json    @default("{\"version\":1,\"fields\":[]}")
+
+  user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tickets Ticket[]
 }
 
-model Attendance {
-  id             String   @id @default(uuid())
-  eventId        String
-  guestName      String
-  guestEmail     String
-  numberOfGuests Int
-  responseType   String   @default("confirmed") // "confirmed" | "maybe" | "declined"
-  confirmedAt    DateTime @default(now())
+model Ticket {
+  id                      String        @id @default(uuid())
+  eventId                 String
+  code                    String        @unique // Crockford, 6 chars, shown "7K3-Q9M"
+  name                    String
+  email                   String? // lowercased; null only for door walk-ins
+  answers                 Json          @default("{}") // { [fieldId]: { label, value } }
+  status                  TicketStatus
+  paymentMethod           PaymentMethod
+  amountCents             Int
+  currency                String        @default("MXN")
+  rejectionReason         String?
+  reviewedAt              DateTime?
+  checkedInAt             DateTime?
+  checkedInBy             String? // staff name or "Organizador"
+  registrationEmailSentAt DateTime?
+  ticketEmailSentAt       DateTime?
+  createdAt               DateTime      @default(now())
+  updatedAt               DateTime      @updatedAt
 
-  event         Event          @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  confirmations Confirmation[]
+  event    Event     @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  receipts Receipt[]
+
+  @@unique([eventId, email]) // NULLs are distinct in Postgres
+  @@index([eventId, status])
 }
 
-model Confirmation {
-  id           String @id @default(uuid())
-  eventId      String
-  attendanceId String
+// 1:N keeps rejected-upload history
+model Receipt {
+  id         String    @id @default(uuid())
+  ticketId   String
+  bytes      Bytes? // null after purge
+  mimeType   String
+  sizeBytes  Int
+  sha256     String
+  uploadedAt DateTime  @default(now())
+  purgedAt   DateTime?
 
-  event      Event      @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  attendance Attendance @relation(fields: [attendanceId], references: [id], onDelete: Cascade)
+  ticket Ticket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+
+  @@index([ticketId, uploadedAt])
+}
+
+model RateLimitBucket {
+  key         String   @id
+  windowStart DateTime
+  count       Int
 }
