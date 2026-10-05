@@ -12,3 +12,12 @@
 
 Verification: tsc clean; vitest 4/4; lint 5 problems (2 errors, 3 warnings) identical before/after, pre-existing.
 Next: PR1 (not started).
+
+## Batch 2: PR1 (branch feat/ticketing-pr1-schema) - DONE
+- [x] 1.1 schema: enums, Event columns, Ticket, Receipt, RateLimitBucket; Attendance/Confirmation dropped (DoorAccess/EventImage deferred to PR7/PR11; Event.imageUrl kept)
+- [x] 1.2 migration 20261004120000_ticketing. `migrate dev` refused (non-interactive; warns about dropping non-empty Attendance). Fallback used: `prisma migrate diff --from-schema <HEAD schema> --to-schema` -> migration.sql, applied with `bun run db:deploy`. No reset needed. migrate status: up to date.
+- [x] 1.3 removed ConfirmAttendanceForm, EventAttendeesModal, confirmAttendance, getAttendancesForEvent, getEventBySlugWithAttendanceCount (public page uses getEventBySlug, form + count removed); dashboard stats now ticket counts by status (paid = PAID+CHECKED_IN, pending validation)
+- [x] 1.4 EventCard "Boletos" link to /dashboard/events/[id]/ticketing; owner-protected stub page ("En construccion")
+Verification: tsc clean; vitest 4/4; lint 3 problems (1 error EventsList set-state-in-effect pre-existing, 2 warnings); build OK.
+Note: public /event/[slug] has no registration form until PR4.
+Next: PR2 (not started).

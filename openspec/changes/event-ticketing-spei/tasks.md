@@ -53,10 +53,10 @@ Files: `app/dashboard/_actions/event.actions.ts` (path per repo), `package.json`
 
 ### PR1: Schema + RSVP removal (~350, base PR0)
 Files: `prisma/schema.prisma`, `prisma/migrations/*_ticketing/`, delete `ConfirmAttendanceForm.tsx`, `EventAttendeesModal.tsx`; remove `confirmAttendance`/`getAttendancesForEvent`; edit `dashboard.actions.ts`, `app/dashboard/page.tsx`, `EventCard.tsx` (link to hub).
-- [ ] 1.1 Add enums, Event columns, Ticket (`email` nullable, `@@unique([eventId,email])`), Receipt, RateLimitBucket; drop Attendance/Confirmation.
-- [ ] 1.2 `bun run db:migrate` (name `ticketing`); review SQL.
-- [ ] 1.3 Delete RSVP components/actions; replace dashboard stats with ticket counts by status.
-- [ ] 1.4 Point `EventCard` at `/dashboard/events/[id]/ticketing`.
+- [x] 1.1 Add enums, Event columns, Ticket (`email` nullable, `@@unique([eventId,email])`), Receipt, RateLimitBucket; drop Attendance/Confirmation.
+- [x] 1.2 `bun run db:migrate` (name `ticketing`); review SQL.
+- [x] 1.3 Delete RSVP components/actions; replace dashboard stats with ticket counts by status.
+- [x] 1.4 Point `EventCard` at `/dashboard/events/[id]/ticketing`.
 - Verify: tsc, lint, app boots, dashboard loads. Rollback: revert PR + `prisma migrate reset` (pre-launch only).
 
 ### PR2: Domain modules, test-first (~400, base PR1)
