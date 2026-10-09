@@ -53,3 +53,12 @@ Strict TDD: ticketing-config, form-builder, env tests written first and run RED 
 Verification: vitest 106/106 (13 files); tsc clean; lint baseline (1 error EventsList, 2 warnings); build OK.
 Notes: name/email are fixed fields outside formSchema (validateAnswers handles them). No migration needed. `.env.template` documents the new vars as commented entries.
 Next: PR4 (not started).
+
+## Batch 4b: PR3 review fixes (same branch)
+- Price capped at 100,000 MXN; CLABE validated whenever non-empty; bank/beneficiary max 100 chars.
+- validateSchemaEdit locks every answered id even if `current` does not list it (corrupt stored schema).
+- .env.template: NEXT_PUBLIC_APP_URL is now an active placeholder (required by lib/env.ts).
+
+Notes for PR4:
+- Registration/receipt flow must handle capacity lowered below already-held tickets: treat as full (never negative remaining).
+- displayCapacity is marketing-only; never use it for enforcement.
