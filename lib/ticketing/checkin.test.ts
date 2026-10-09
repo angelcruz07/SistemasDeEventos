@@ -1,0 +1,122 @@
+import { describe, expect, it } from "vitest";
+import { checkInDecision, isRepeatScan, parseScanInput, parseWalkIn, parseSearchQuery } from "./checkin";
+import { signTicketToken } from "./token";
+
+const SECRET = "x".repeat(40);
+
+describe("parseScanInput", () => {
+  it("extracts the ticket id from a valid signed token", () => {
+    const token = signTicketToken("ticket-1", SECRET);
+    expect(parseScanInput(token, SECRET)).toEqual({ kind: "ticket", ticketId: "ticket-1" });
+  });
+
+  it("trims surrounding whitespace", () => {
+    const token = signTicketToken("ticket-1", SECRET);
+    expect(parseScanInput(`  ${token}\n`, SECRET)).toEqual({ kind: "ticket", ticketId: "ticket-1" });
+  });
+
+  it("rejects a forged token", () => {
+    const token = signTicketToken("ticket-1", SECRET);
+    const forged = `${token.split(".")[0]}.AAAA`;
+    expect(parseScanInput(forged, SECRET)).toEqual({ kind: "invalid" });
+  });
+
+  it("accepts a manual short code in any common form", () => {
+    expect(parseScanInput("7k3-q9m", SECRET)).toEqual({ kind: "code", code: "7K3Q9M" });
+    expect(parseScanInput("7K3 Q9M", SECRET)).toEqual({ kind: "code", code: "7K3Q9M" });
+  });
+
+  it("rejects junk", () => {
+    for (const junk of ["", "   ", "hello world", "abc", "https://example.com/x", "7K3-Q9M-XX"]) {
+      expect(parseScanInput(junk, SECRET)).toEqual({ kind: "invalid" });
+    }
+  });
+});
+
+describe("parseSearchQuery", () => {
+  it("requires at least 2 characters", () => {
+    expect(parseSearchQuery(" a ")).toBeNull();
+    expect(parseSearchQuery("ab")).toEqual({ text: "ab", code: "AB" });
+  });
+
+  it("caps the length", () => {
+    expect(parseSearchQuery("a".repeat(500))?.text.length).toBe(100);
+  });
+
+  it("normalizes the code variant", () => {
+    expect(parseSearchQuery("7k3-q9m")?.code).toBe("7K3Q9M");
+  });
+});
+
+describe("checkInDecision", () => {
+  const base = { eventId: "e1", status: "PAID", checkedInAt: null, checkedInBy: null } as const;
+
+  it("allows a paid ticket of this event", () => {
+    expect(checkInDecision(base, "e1")).toEqual({ kind: "allow" });
+  });
+
+  it("reports an earlier check-in with time and staff", () => {
+    const d = checkInDecision(
+      { ...base, status: "CHECKED_IN", checkedInAt: new Date("2026-10-26T02:30:00Z"), checkedInBy: "Ana" },
+      "e1",
+    );
+    expect(d).toEqual({ kind: "already", message: "Ya ingresó a las 20:30 por Ana" });
+  });
+
+  it("refuses unpaid statuses with the status label", () => {
+    const d = checkInDecision({ ...base, status: "PENDING_VALIDATION" }, "e1");
+    expect(d).toEqual({ kind: "denied", message: "Pago no confirmado: Pendiente de validar" });
+    expect(checkInDecision({ ...base, status: "REJECTED" }, "e1").kind).toBe("denied");
+    expect(checkInDecision({ ...base, status: "PENDING_RECEIPT" }, "e1").kind).toBe("denied");
+  });
+
+  it("refuses cancelled tickets", () => {
+    expect(checkInDecision({ ...base, status: "CANCELLED" }, "e1")).toEqual({ kind: "denied", message: "Cancelado" });
+  });
+
+  it("refuses tickets of another event before anything else", () => {
+    expect(checkInDecision({ ...base, status: "CHECKED_IN" }, "e2")).toEqual({
+      kind: "denied",
+      message: "Boleto de otro evento",
+    });
+  });
+});
+
+describe("parseWalkIn", () => {
+  it("requires a name", () => {
+    expect(parseWalkIn({ name: "  " })).toEqual({ errors: { name: "Ingresa el nombre" } });
+  });
+
+  it("accepts name only", () => {
+    expect(parseWalkIn({ name: " Ana " })).toEqual({ data: { name: "Ana", email: null, phone: null } });
+  });
+
+  it("lowercases and validates optional email", () => {
+    expect(parseWalkIn({ name: "Ana", email: " ANA@Mail.com " })).toEqual({
+      data: { name: "Ana", email: "ana@mail.com", phone: null },
+    });
+    expect(parseWalkIn({ name: "Ana", email: "nope" })).toEqual({ errors: { email: "Ingresa un correo válido" } });
+  });
+
+  it("validates optional phone", () => {
+    expect(parseWalkIn({ name: "Ana", phone: "55 1234 5678" })).toEqual({
+      data: { name: "Ana", email: null, phone: "55 1234 5678" },
+    });
+    expect(parseWalkIn({ name: "Ana", phone: "abc" })).toEqual({ errors: { phone: "Ingresa un teléfono válido" } });
+  });
+
+  it("rejects non-object and oversized input", () => {
+    expect(parseWalkIn(null).errors?.name).toBeDefined();
+    expect(parseWalkIn({ name: "a".repeat(200) }).errors?.name).toBeDefined();
+  });
+});
+
+describe("isRepeatScan", () => {
+  it("ignores the same value inside the window only", () => {
+    const last = { value: "abc", at: 1000 };
+    expect(isRepeatScan(last, "abc", 3999, 3000)).toBe(true);
+    expect(isRepeatScan(last, "abc", 4000, 3000)).toBe(false);
+    expect(isRepeatScan(last, "other", 1500, 3000)).toBe(false);
+    expect(isRepeatScan(null, "abc", 1500, 3000)).toBe(false);
+  });
+});
