@@ -34,21 +34,28 @@ export type ValidatedRegistration =
   | { errors: Record<string, string> };
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const MAX_TEXT = 500;
-const MAX_TEXTAREA = 2000;
+const FIELD_ID_RE = /^[a-z][a-z0-9_]{0,40}$/;
+const NUMBER_RE = /^-?\d+(\.\d+)?$/;
+const MAX_FIELDS = 50;
+const MAX_LABEL = 200;
+const MAX_OPTIONS = 50;
+const MAX_OPTION_LENGTH = 200;
+const MAX_EMAIL = 254;
+const MAX_TEXT = 2000;
 
 function isField(value: unknown): value is FormField {
   if (typeof value !== "object" || value === null) return false;
   const f = value as Record<string, unknown>;
-  if (typeof f.id !== "string" || !f.id) return false;
-  if (typeof f.label !== "string" || !f.label.trim()) return false;
+  if (typeof f.id !== "string" || !FIELD_ID_RE.test(f.id)) return false;
+  if (typeof f.label !== "string" || !f.label.trim() || f.label.length > MAX_LABEL) return false;
   if (typeof f.required !== "boolean") return false;
   if (!FIELD_TYPES.includes(f.type as FieldType)) return false;
   if (f.type === "select") {
     return (
       Array.isArray(f.options) &&
       f.options.length > 0 &&
-      f.options.every((o) => typeof o === "string" && o.trim())
+      f.options.length <= MAX_OPTIONS &&
+      f.options.every((o) => typeof o === "string" && !!o.trim() && o.length <= MAX_OPTION_LENGTH)
     );
   }
   return f.options === undefined;
@@ -58,7 +65,14 @@ function isField(value: unknown): value is FormField {
 export function parseFormSchema(json: unknown): FormSchema | null {
   if (typeof json !== "object" || json === null) return null;
   const s = json as Record<string, unknown>;
-  if (s.version !== 1 || !Array.isArray(s.fields) || !s.fields.every(isField)) return null;
+  if (
+    s.version !== 1 ||
+    !Array.isArray(s.fields) ||
+    s.fields.length > MAX_FIELDS ||
+    !s.fields.every(isField)
+  ) {
+    return null;
+  }
   const ids = s.fields.map((f: FormField) => f.id);
   if (new Set(ids).size !== ids.length) return null;
   return { version: 1, fields: s.fields as FormField[] };
@@ -80,31 +94,31 @@ function validateField(field: FormField, raw: unknown): { value?: AnswerValue; e
       return field.options?.includes(text) ? { value: text } : { error: "Selecciona una opcion valida" };
     case "number": {
       const n = Number(text);
-      return Number.isFinite(n) ? { value: n } : { error: "Ingresa un numero valido" };
+      return NUMBER_RE.test(text) && Number.isFinite(n) ? { value: n } : { error: "Ingresa un numero valido" };
     }
     case "phone": {
       const digits = text.replace(/\D/g, "");
       const valid = /^\+?[\d\s()-]+$/.test(text) && digits.length >= 10 && digits.length <= 15;
       return valid ? { value: text } : { error: "Ingresa un telefono valido" };
     }
-    case "textarea":
-      return text.length <= MAX_TEXTAREA ? { value: text } : { error: "Texto demasiado largo" };
     default:
       return text.length <= MAX_TEXT ? { value: text } : { error: "Texto demasiado largo" };
   }
 }
 
 export function validateAnswers(schema: FormSchema, input: RegistrationInput): ValidatedRegistration {
-  const errors: Record<string, string> = {};
+  const errors: Record<string, string> = Object.create(null);
   const name = input.name.trim();
   const email = input.email.trim().toLowerCase();
   if (!name) errors.name = "El nombre es obligatorio";
   else if (name.length > 120) errors.name = "El nombre es demasiado largo";
-  if (!EMAIL_RE.test(email) || email.length > 254) errors.email = "Ingresa un correo valido";
+  if (email.length > MAX_EMAIL || !EMAIL_RE.test(email)) errors.email = "Ingresa un correo valido";
 
-  const answers: Record<string, { label: string; value: AnswerValue }> = {};
+  const answers: Record<string, { label: string; value: AnswerValue }> = Object.create(null);
   for (const field of schema.fields) {
-    const result = validateField(field, input.fields[field.id]);
+    // Own properties only: inherited keys such as "constructor" are never answers.
+    const raw = Object.hasOwn(input.fields, field.id) ? input.fields[field.id] : undefined;
+    const result = validateField(field, raw);
     if (result.error) errors[field.id] = result.error;
     else if (result.value !== undefined) answers[field.id] = { label: field.label, value: result.value };
   }

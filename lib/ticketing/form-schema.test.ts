@@ -117,3 +117,78 @@ describe("validateSchemaEdit", () => {
     expect(validateSchemaEdit(schema, { version: 1, fields: [] }, new Set())).toEqual({ ok: true });
   });
 });
+
+describe("prototype safety and id format", () => {
+  const field = (id: string) => ({ id, type: "text", label: "x", required: true });
+  const withIds = (...ids: string[]) => ({ version: 1, fields: ids.map(field) });
+
+  it("rejects unsafe or malformed field ids", () => {
+    for (const id of ["__proto__", "Constructor", "1a", "a-b", "", "a".repeat(42), "toString"]) {
+      expect(parseFormSchema(withIds(id)), id).toBeNull();
+    }
+    expect(parseFormSchema(withIds("a", "a_1", "a".repeat(41)))).not.toBeNull();
+  });
+
+  it("does not read inherited properties as answers", () => {
+    const s = parseFormSchema(withIds("constructor"))!;
+    const result = validateAnswers(s, { name: "A", email: "a@b.co", fields: {} });
+    expect(result).toEqual({ errors: { constructor: "Este campo es obligatorio" } });
+  });
+
+  it("ignores own __proto__/constructor keys that are not schema fields", () => {
+    const fields = JSON.parse('{"__proto__":"x","constructor":"y","f1":"ACME","f3":true}');
+    const result = validateAnswers(schema, { ...base, fields });
+    expect(result).toMatchObject({ data: { answers: { f1: { value: "ACME" } } } });
+    if (!("data" in result)) throw new Error("expected data");
+    expect(Object.keys(result.data.answers).sort()).toEqual(["f1", "f3"]);
+    expect(Object.getPrototypeOf(result.data.answers)).toBeNull();
+  });
+
+  it("still reports a missing required field", () => {
+    const fields = JSON.parse('{"__proto__":"x","f3":true}');
+    expect(validateAnswers(schema, { ...base, fields })).toMatchObject({
+      errors: { f1: expect.any(String) },
+    });
+  });
+});
+
+describe("limits and number format", () => {
+  const f = (over: object) => ({ id: "a", type: "text", label: "x", required: false, ...over });
+  const one = (field: object) => ({ version: 1, fields: [field] });
+
+  it("caps fields, labels and options", () => {
+    const many = (n: number) => ({
+      version: 1,
+      fields: Array.from({ length: n }, (_, i) => f({ id: `f${i}` })),
+    });
+    expect(parseFormSchema(many(50))).not.toBeNull();
+    expect(parseFormSchema(many(51))).toBeNull();
+    expect(parseFormSchema(one(f({ label: "x".repeat(200) })))).not.toBeNull();
+    expect(parseFormSchema(one(f({ label: "x".repeat(201) })))).toBeNull();
+    const sel = (options: string[]) => one(f({ type: "select", options }));
+    expect(parseFormSchema(sel(Array(50).fill("o")))).not.toBeNull();
+    expect(parseFormSchema(sel(Array(51).fill("o")))).toBeNull();
+    expect(parseFormSchema(sel(["o".repeat(201)]))).toBeNull();
+  });
+
+  it("caps text answers at 2000 chars", () => {
+    const s = parseFormSchema(one(f({})))!;
+    const run = (v: string) => validateAnswers(s, { name: "A", email: "a@b.co", fields: { a: v } });
+    expect(run("x".repeat(2000))).toHaveProperty("data");
+    expect(run("x".repeat(2001))).toHaveProperty("errors.a");
+  });
+
+  it("accepts only plain decimal numbers", () => {
+    const s = parseFormSchema(one(f({ type: "number" })))!;
+    const run = (v: string) => validateAnswers(s, { name: "A", email: "a@b.co", fields: { a: v } });
+    for (const ok of ["0", "-5", "3.14", "007"]) expect(run(ok), ok).toHaveProperty("data");
+    for (const bad of ["0x10", "1e308", "Infinity", "1.", ".5", "1,5"]) {
+      expect(run(bad), bad).toHaveProperty("errors.a");
+    }
+  });
+
+  it("rejects over-long emails", () => {
+    const email = `${"a".repeat(250)}@b.co`;
+    expect(validateAnswers(schema, { ...base, email })).toMatchObject({ errors: { email: expect.any(String) } });
+  });
+});

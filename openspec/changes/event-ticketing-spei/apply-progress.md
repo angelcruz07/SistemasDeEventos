@@ -32,3 +32,14 @@ Next: PR2 (not started).
 Strict TDD: each module's test written first and run RED (module not found) before implementation.
 Verification: vitest 73/73 (10 files); see report for tsc/lint.
 Next: PR3 (not started).
+
+## Batch 3b: PR2 review fixes (same branch)
+- token: canonical base64url only (charset + round-trip), signing secret >= 32 chars enforced on sign and verify.
+- status/payment/money: invalid priceCents/cents (negative, fractional, NaN) throw.
+- form-schema: field ids /^[a-z][a-z0-9_]{0,40}$/, own-property reads, null-prototype answers/errors, plain-decimal numbers, limits (50 fields, label 200, 50 options x 200, text 2000, email 254 checked before regex).
+
+Notes for later PRs (not implemented here):
+- PR4 (receipt upload): capacity MUST be re-checked atomically (event row lock) on PENDING_RECEIPT/REJECTED -> PENDING_VALIDATION.
+- PR5/PR6 (receipt serving): use Content-Disposition: attachment, X-Content-Type-Options: nosniff and the server-sniffed MIME, never a stored/declared one.
+- Any short-code lookup endpoint MUST be rate-limited.
+- PR8 (check-in): verify the ticket's eventId matches the door session's event.
