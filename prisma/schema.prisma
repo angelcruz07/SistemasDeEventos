@@ -104,8 +104,9 @@ model Event {
   registrationOpen Boolean @default(true)
   formSchema       Json    @default("{\"version\":1,\"fields\":[]}")
 
-  user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  tickets Ticket[]
+  user       User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tickets    Ticket[]
+  doorAccess DoorAccess?
 }
 
 model Ticket {
@@ -155,4 +156,18 @@ model RateLimitBucket {
   key         String   @id
   windowStart DateTime
   count       Int
+}
+
+model DoorAccess {
+  id             String    @id @default(uuid())
+  eventId        String    @unique
+  keyHash        String    @unique // sha256(link key); the raw key is never stored
+  pinHash        String // scrypt$N$salt$hash; the raw PIN is never stored
+  sessionVersion Int       @default(1)
+  failedAttempts Int       @default(0)
+  lockedUntil    DateTime?
+  revokedAt      DateTime?
+  createdAt      DateTime  @default(now())
+
+  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
 }
