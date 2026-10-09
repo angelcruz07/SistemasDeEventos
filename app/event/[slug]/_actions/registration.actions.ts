@@ -2,6 +2,7 @@
 
 import { randomInt } from "node:crypto";
 import { headers } from "next/headers";
+import { after } from "next/server";
 import type { Prisma } from "@/app/generated/prisma/client";
 import prisma from "@/app/lib/prisma";
 import { getTicketingEnv } from "@/lib/env";
@@ -26,6 +27,7 @@ export type RegisterResult =
 const WINDOW_MS = 10 * 60 * 1000;
 const MAX_PER_IP = 10;
 const MAX_PER_EMAIL = 3;
+const TX_OPTIONS = { maxWait: 5000, timeout: 10000 };
 
 const GENERIC_ERROR: RegisterResult = { success: false, error: "No se pudo completar el registro. Inténtalo de nuevo." };
 const RATE_LIMITED: RegisterResult = {
@@ -62,7 +64,10 @@ export async function registerForEvent(slug: string, input: unknown): Promise<Re
     getTicketingEnv(); // Fail before creating anything we could not link to.
 
     const ip = getClientIp(await headers());
-    if (!(await hitRateLimit(rateLimitKey("register:ip", ip), MAX_PER_IP, WINDOW_MS)).allowed) return RATE_LIMITED;
+    // No trustworthy IP: skip the per-IP limit (a shared bucket would be a site-wide DoS). Per-email still applies.
+    if (ip && !(await hitRateLimit(rateLimitKey("register:ip", ip), MAX_PER_IP, WINDOW_MS)).allowed) {
+      return RATE_LIMITED;
+    }
 
     const event = await prisma.event.findFirst({ where: { slug, isCancelled: false } });
     if (!event) return { success: false, error: "Evento no encontrado." };
@@ -111,19 +116,20 @@ export async function registerForEvent(slug: string, input: unknown): Promise<Re
             },
           });
           return { kind: "created" as const, ticket, event: current };
-        }),
+        }, TX_OPTIONS),
       isUniqueViolation,
     );
 
     if (outcome.kind === "refused") return { success: false, error: REFUSALS[outcome.reason] };
 
-    // Best effort and after commit: a provider outage must not undo the registration.
+    // Best effort, after commit and after the response: a provider outage must not undo the
+    // registration, and awaiting the send would make a duplicate (re-send) slower than a new
+    // registration, revealing which emails are registered. sendTicketEmail never throws.
     const emailKind = emailKindFor(outcome.ticket.status);
     if (emailKind) {
-      await sendTicketEmail(
-        emailKind,
-        { id: outcome.ticket.id, name: outcome.ticket.name, email, code: outcome.ticket.code },
-        outcome.event,
+      const { ticket, event: emailEvent } = outcome;
+      after(() =>
+        sendTicketEmail(emailKind, { id: ticket.id, name: ticket.name, email, code: ticket.code }, emailEvent),
       );
     }
     return { success: true };
