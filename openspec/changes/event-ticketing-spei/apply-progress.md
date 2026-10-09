@@ -96,3 +96,14 @@ Strict TDD: attendees, review, receipt-purge, receipt-response, cron-auth tests 
 Verification: vitest 199/199 (26 files); tsc clean; lint baseline (1 error EventsList, 2 warnings); build OK.
 Not verified: actions, routes, purge queries not run against a DB.
 Next: PR7 (not started).
+
+## Batch 8: PR7 (branch feat/ticketing-pr7-door-access) - DONE
+- [x] 7.1 `lib/ticketing/door-pin.ts` (generatePin via crypto.randomInt, generateDoorKey 256-bit base64url, hashDoorKey sha256, hashPin/verifyPin scrypt N=16384 random salt + timingSafeEqual, nextLockout/isLocked 5 failures -> 15 min with injected `now`, parseStaffName, sessionMatchesAccess) and `door-view.ts` (whitelist projections: no receipts, amounts, email, SPEI, settings).
+- [x] 7.2 Owner page `/dashboard/events/[id]/door` (+ "Puerta" tab): generate/regenerate (upsert, sessionVersion++), revoke; link and PIN shown once with copy buttons; only hashes stored; every action re-checks `getOwnedEvent`.
+- [x] 7.3 Public `/door/[key]` + `PinForm` + `unlockDoor`/`logoutDoor` actions: per-IP (20/10min, skipped without IP) and per-access (40/10min) rate limits, DB lockout via atomic increment, cookie `door_session` httpOnly/sameSite=strict/secure in prod, path `/door/<key>`, 12h. `lib/server/door-session.ts`: `findActiveDoorAccess`, `getDoorSession(key)` -> {access, event (staff-safe), staffName}; verifies signature, exp, accessId and sessionVersion/revokedAt against DB. Landing shows "Acceso concedido, <name>" + event info + Salir. noindex, no-referrer.
+Migration `20261008210000_door_access`: `migrate dev` hung non-interactively; fallback `migrate diff` (additive: CREATE TABLE DoorAccess + 2 unique indexes + FK cascade), applied with `db:deploy`. A hung prisma/schema-engine process held the advisory lock and had to be killed first.
+Strict TDD: door-pin and door-view tests RED (module not found), then GREEN; sessionMatchesAccess RED (2 failed) then GREEN.
+Verification: vitest 223/223 (28 files); tsc clean; lint baseline (1 error EventsList, 2 warnings); build OK; migrate status up to date.
+Not verified: actions/pages not run against the DB or in a browser.
+Notes for PR8: use getDoorSession(key) in every door action; verify ticket.eventId === session.access.eventId; use toDoorTicketView; ticket check-in must be conditional updateMany.
+Next: PR8 (not started).

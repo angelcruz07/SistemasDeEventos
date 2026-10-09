@@ -104,8 +104,8 @@ Files: `[id]/attendees/page.tsx`, `_components/{AttendeesTable,ReceiptDialog}.ts
 
 ### PR7: Door access (~380, base PR6)
 Files: migration `door_access` (DoorAccess only), `lib/ticketing/{door-pin,door-view}.ts` + tests, `lib/server/door-session.ts`, `[id]/door/page.tsx`, `app/door/[key]/page.tsx` + `PinForm`.
-- [ ] 7.1 RED/GREEN `door-pin` (scrypt, lockout), `door-view` (no receipts/amounts).
-- [ ] 7.2 Owner page: generate/regenerate/revoke, PIN shown once. 7.3 Unlock page + signed cookie, `sessionVersion` check.
+- [x] 7.1 RED/GREEN `door-pin` (scrypt, lockout), `door-view` (no receipts/amounts).
+- [x] 7.2 Owner page: generate/regenerate/revoke, PIN shown once. [x] 7.3 Unlock page + signed cookie, `sessionVersion` check.
 - Verify: tsc, lint, vitest; manual: wrong PIN x5 locks, regenerated link denied. Rollback: revert + drop table.
 
 ### PR8: Check-in console (~400, base PR7)

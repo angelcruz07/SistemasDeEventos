@@ -9,6 +9,7 @@ import {
   isLocked,
   nextLockout,
   parseStaffName,
+  sessionMatchesAccess,
   verifyPin,
 } from "./door-pin";
 
@@ -99,5 +100,18 @@ describe("parseStaffName", () => {
   });
   it("strips control characters", () => {
     expect(parseStaffName("An\u0000a\n")).toEqual({ name: "Ana" });
+  });
+});
+
+describe("sessionMatchesAccess", () => {
+  const access = { id: "a1", sessionVersion: 3, revokedAt: null };
+  const payload = { accessId: "a1", version: 3, name: "Ana", exp: 1 };
+  it("accepts a matching session", () => {
+    expect(sessionMatchesAccess(payload, access)).toBe(true);
+  });
+  it("rejects another access, an old version or a revoked access", () => {
+    expect(sessionMatchesAccess({ ...payload, accessId: "a2" }, access)).toBe(false);
+    expect(sessionMatchesAccess({ ...payload, version: 2 }, access)).toBe(false);
+    expect(sessionMatchesAccess(payload, { ...access, revokedAt: new Date() })).toBe(false);
   });
 });

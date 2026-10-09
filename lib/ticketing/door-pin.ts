@@ -68,11 +68,18 @@ export function isLocked(lockedUntil: Date | null, now: Date): boolean {
 }
 
 export function parseStaffName(input: unknown): { name: string } | { error: string } {
-  // eslint-disable-next-line no-control-regex
   const name = typeof input === "string" ? input.replace(/[\u0000-\u001f\u007f]/g, "").trim() : "";
   if (!name) return { error: "Escribe tu nombre." };
   if (name.length > MAX_STAFF_NAME_LENGTH) {
     return { error: `El nombre no puede superar ${MAX_STAFF_NAME_LENGTH} caracteres.` };
   }
   return { name };
+}
+
+/** A signed cookie is only honoured while it matches the live DoorAccess row. */
+export function sessionMatchesAccess(
+  payload: { accessId: string; version: number },
+  access: { id: string; sessionVersion: number; revokedAt: Date | null },
+): boolean {
+  return access.revokedAt === null && payload.accessId === access.id && payload.version === access.sessionVersion;
 }
