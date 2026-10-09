@@ -7,7 +7,12 @@ export type TicketView =
   | { kind: "cancelled" };
 
 /** What the attendee-facing ticket page shows for each status. */
-export function ticketViewFor(ticket: { status: TicketStatus; rejectionReason: string | null }): TicketView {
+export function ticketViewFor(ticket: {
+  status: TicketStatus;
+  rejectionReason: string | null;
+  eventCancelled?: boolean;
+}): TicketView {
+  if (ticket.eventCancelled) return { kind: "cancelled" };
   switch (ticket.status) {
     case "PENDING_RECEIPT":
       return { kind: "upload", rejectionReason: null };

@@ -35,6 +35,7 @@ export default async function TicketPage({ params }: { params: Promise<{ token: 
       event: {
         select: {
           title: true,
+          isCancelled: true,
           date: true,
           time: true,
           location: true,
@@ -47,7 +48,7 @@ export default async function TicketPage({ params }: { params: Promise<{ token: 
   });
   if (!ticket) notFound();
 
-  const view = ticketViewFor(ticket);
+  const view = ticketViewFor({ ...ticket, eventCancelled: ticket.event.isCancelled });
   const code = formatShortCode(ticket.code);
   const { event } = ticket;
 

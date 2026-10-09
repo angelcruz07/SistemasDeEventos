@@ -7,14 +7,15 @@ import { hitRateLimit } from "@/lib/server/rate-limit";
 import { getClientIp, rateLimitKey } from "@/lib/server/request-keys";
 import { HOLDING_STATUSES } from "@/lib/ticketing/capacity";
 import { validateReceiptFile } from "@/lib/ticketing/receipt-file";
-import { decideReceiptUpload, isBodyTooLarge, type UploadRefusal } from "@/lib/ticketing/receipt-upload";
+import { readBodyLimited } from "@/lib/ticketing/read-limited";
+import { decideReceiptUpload, isBodyTooLarge, MAX_REQUEST_BYTES, type UploadRefusal } from "@/lib/ticketing/receipt-upload";
 import { verifyTicketToken } from "@/lib/ticketing/token";
 
 export const runtime = "nodejs";
 
 const WINDOW_MS = 60 * 60 * 1000;
 const MAX_PER_IP = 20;
-const MAX_PER_TICKET = 6;
+const MAX_PER_TICKET = 20;
 const TX_OPTIONS = { maxWait: 5000, timeout: 10000 };
 
 class StatusChanged extends Error {}
@@ -40,7 +41,6 @@ export async function POST(request: Request, { params }: { params: Promise<{ tok
     if (!ticketId) return fail("Boleto no encontrado.", 404);
 
     const contentLength = request.headers.get("content-length");
-    if (contentLength === null) return fail("Solicitud no válida.", 411);
     if (isBodyTooLarge(contentLength)) return fail(FILE_ERRORS.size, 413);
 
     const ip = getClientIp(request.headers);
@@ -52,7 +52,14 @@ export async function POST(request: Request, { params }: { params: Promise<{ tok
       return fail("Demasiados intentos. Inténtalo más tarde.", 429);
     }
 
-    const form = await request.formData().catch(() => null);
+    // Bounded read: a missing or lying Content-Length can never make us buffer more than the limit.
+    const body = await readBodyLimited(request.body, MAX_REQUEST_BYTES);
+    if (!body.ok) return fail(FILE_ERRORS.size, 413);
+    const form = await new Response(body.bytes as Uint8Array<ArrayBuffer>, {
+      headers: { "content-type": request.headers.get("content-type") ?? "" },
+    })
+      .formData()
+      .catch(() => null);
     const file = form?.get("file");
     if (!(file instanceof File)) return fail("Selecciona un archivo.", 400);
 

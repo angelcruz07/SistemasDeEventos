@@ -25,3 +25,12 @@ describe("ticketViewFor", () => {
     expect(ticketViewFor({ ...base, status: "CANCELLED" })).toEqual({ kind: "cancelled" });
   });
 });
+
+describe("ticketViewFor cancelled event", () => {
+  it.each(["PENDING_RECEIPT", "REJECTED", "PENDING_VALIDATION", "PAID", "CHECKED_IN"] as const)(
+    "shows cancelled for %s when the event is cancelled",
+    (status) => {
+      expect(ticketViewFor({ status, rejectionReason: null, eventCancelled: true })).toEqual({ kind: "cancelled" });
+    },
+  );
+});

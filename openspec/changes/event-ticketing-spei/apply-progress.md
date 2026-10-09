@@ -83,3 +83,6 @@ Verification: vitest 161/161 (20 files); tsc clean; lint baseline (1 error Event
 Not verified: routes/transaction not run against a DB.
 Notes for PR6: receipt serving route must use Content-Disposition attachment, nosniff, and the stored mimeType (sniffed at upload). Review actions that change status should use conditional updateMany.
 Next: PR6 (not started).
+
+Review fixes (PR5): body read is now streamed with a byte cap (missing Content-Length allowed, early 413 when present and too large); per-ticket limit 20/h; cancelled event shows the cancelled view.
+Notes for PR6: the purge job must also purge superseded receipts (older Receipt rows of the same ticket); the organizer view must read the latest receipt by uploadedAt.
