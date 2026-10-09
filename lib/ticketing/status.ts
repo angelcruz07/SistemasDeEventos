@@ -30,6 +30,7 @@ export interface InitialStatusInput {
 }
 
 export function initialStatus({ method, priceCents, channel }: InitialStatusInput): TicketStatus {
+  if (!Number.isInteger(priceCents) || priceCents < 0) throw new Error("priceCents must be a non-negative integer");
   if (channel === "door") {
     if (method !== "CASH") throw new Error("Door registrations must be CASH");
     return "CHECKED_IN";

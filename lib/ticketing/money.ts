@@ -8,6 +8,7 @@ export function parsePesosToCents(input: string): number | null {
 
 /** Locale-independent MXN formatting, e.g. 123456 -> "$1,234.56". */
 export function formatMxn(cents: number): string {
+  if (!Number.isInteger(cents) || cents < 0) throw new Error("cents must be a non-negative integer");
   const pesos = Math.floor(cents / 100)
     .toString()
     .replace(/\B(?=(\d{3})+(?!\d))/g, ",");

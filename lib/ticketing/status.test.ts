@@ -53,3 +53,11 @@ describe("initialStatus", () => {
     expect(() => initialStatus({ method: "SPEI", priceCents: 100, channel: "door" })).toThrow();
   });
 });
+
+describe("initialStatus price validation", () => {
+  it("rejects negative, fractional and NaN prices", () => {
+    for (const priceCents of [-1, 1.5, Number.NaN, Infinity]) {
+      expect(() => initialStatus({ method: "SPEI", priceCents, channel: "public" })).toThrow();
+    }
+  });
+});

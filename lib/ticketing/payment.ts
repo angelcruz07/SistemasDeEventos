@@ -20,6 +20,7 @@ export const FREE_POLICY = policy("FREE", "public");
 export const CASH_POLICY = policy("CASH", "door");
 
 export function policyFor(channel: "public" | "door", priceCents: number): PaymentMethodPolicy {
+  if (!Number.isInteger(priceCents) || priceCents < 0) throw new Error("priceCents must be a non-negative integer");
   if (channel === "door") return CASH_POLICY;
   return priceCents === 0 ? FREE_POLICY : SPEI_POLICY;
 }

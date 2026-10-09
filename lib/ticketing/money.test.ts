@@ -30,3 +30,11 @@ describe("formatMxn", () => {
     expect(formatMxn(5)).toBe("$0.05");
   });
 });
+
+describe("formatMxn validation", () => {
+  it("throws on negative or non-integer cents", () => {
+    for (const bad of [-1, 1.5, Number.NaN, Infinity]) {
+      expect(() => formatMxn(bad)).toThrow();
+    }
+  });
+});

@@ -19,3 +19,12 @@ describe("payment policies", () => {
     expect(policyFor("door", 100)).toBe(CASH_POLICY);
   });
 });
+
+describe("policyFor price validation", () => {
+  it("rejects negative, fractional and NaN prices", () => {
+    for (const price of [-1, 1.5, Number.NaN]) {
+      expect(() => policyFor("public", price)).toThrow();
+      expect(() => policyFor("door", price)).toThrow();
+    }
+  });
+});
