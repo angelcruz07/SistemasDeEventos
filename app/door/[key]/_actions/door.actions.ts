@@ -1,12 +1,26 @@
 "use server";
 
+import { randomInt } from "node:crypto";
 import { cookies, headers } from "next/headers";
 import { revalidatePath } from "next/cache";
 import prisma from "@/app/lib/prisma";
+import type { Prisma } from "@/app/generated/prisma/client";
 import { getTicketingEnv } from "@/lib/env";
-import { DOOR_COOKIE, DOOR_SESSION_MS, doorCookiePath, findActiveDoorAccess } from "@/lib/server/door-session";
+import {
+  DOOR_COOKIE,
+  DOOR_SESSION_MS,
+  doorCookiePath,
+  findActiveDoorAccess,
+  getDoorSession,
+  type DoorSession,
+} from "@/lib/server/door-session";
 import { hitRateLimit } from "@/lib/server/rate-limit";
 import { getClientIp, rateLimitKey } from "@/lib/server/request-keys";
+import { checkInDecision, parseScanInput, parseSearchQuery, parseWalkIn, type CheckInDecision } from "@/lib/ticketing/checkin";
+import { toDoorTicketView, type DoorTicketView } from "@/lib/ticketing/door-view";
+import { isUniqueViolation } from "@/lib/ticketing/registration";
+import { createWithUniqueCode, generateShortCode } from "@/lib/ticketing/short-code";
+import { initialStatus } from "@/lib/ticketing/status";
 import { MAX_FAILED_ATTEMPTS, nextLockout, parseStaffName, verifyPin } from "@/lib/ticketing/door-pin";
 import { signDoorSession } from "@/lib/ticketing/token";
 
@@ -92,4 +106,211 @@ export async function logoutDoor(key: string): Promise<void> {
     maxAge: 0,
   });
   revalidatePath(doorCookiePath(key));
+}
+
+// ---------------------------------------------------------------------------
+// Check-in console. Every action resolves the door session first; the event is
+// ALWAYS taken from the session, never from client input.
+// ---------------------------------------------------------------------------
+
+const EXPIRED = "Sesión expirada";
+const SEARCH_LIMIT = 10;
+const NOT_FOUND = "Boleto no encontrado para este evento";
+
+const TICKET_SELECT = {
+  id: true,
+  eventId: true,
+  code: true,
+  name: true,
+  status: true,
+  paymentMethod: true,
+  answers: true,
+  checkedInAt: true,
+  checkedInBy: true,
+} as const;
+
+export interface DoorLookupEntry {
+  ticket: DoorTicketView;
+  decision: CheckInDecision;
+}
+
+export type LookupResult = { success: true; entries: DoorLookupEntry[] } | { success: false; error: string };
+export type CheckInResult =
+  | { success: true; ticket: DoorTicketView }
+  | { success: false; error: string; ticket?: DoorTicketView; decision?: CheckInDecision };
+export type WalkInResult =
+  | { success: true; ticket: DoorTicketView }
+  | { success: false; error: string; fieldErrors?: Record<string, string>; duplicateEmail?: boolean };
+
+type SessionOutcome = { session: DoorSession; error?: undefined } | { session?: undefined; error: string };
+
+async function requireDoorSession(key: string, rateScope?: string): Promise<SessionOutcome> {
+  const session = await getDoorSession(key);
+  if (!session) return { error: EXPIRED };
+  if (rateScope) {
+    const ip = getClientIp(await headers());
+    if (ip && !(await hitRateLimit(rateLimitKey(`${rateScope}-ip`, ip), 600, TEN_MINUTES)).allowed) {
+      return { error: TOO_MANY };
+    }
+    if (!(await hitRateLimit(rateLimitKey(`${rateScope}-access`, session.access.id), 600, TEN_MINUTES)).allowed) {
+      return { error: TOO_MANY };
+    }
+  }
+  return { session };
+}
+
+function toEntry(ticket: Prisma.TicketGetPayload<{ select: typeof TICKET_SELECT }>, eventId: string): DoorLookupEntry {
+  return { ticket: toDoorTicketView(ticket), decision: checkInDecision(ticket, eventId) };
+}
+
+/** Scan or manual short code: resolves exactly one ticket of the session's event. */
+export async function lookupTicket(key: string, input: string): Promise<LookupResult> {
+  try {
+    const outcome = await requireDoorSession(key, "door-lookup");
+    if (outcome.error !== undefined) return { success: false, error: outcome.error };
+    const { session } = outcome;
+
+    const parsed = parseScanInput(typeof input === "string" ? input : "", getTicketingEnv().signingSecret);
+    if (parsed.kind === "invalid") return { success: false, error: "Código no válido" };
+
+    // Scoping by eventId in the query makes another event's ticket indistinguishable from a missing one.
+    const where = parsed.kind === "ticket" ? { id: parsed.ticketId } : { code: parsed.code };
+    const ticket = await prisma.ticket.findFirst({
+      where: { ...where, eventId: session.access.eventId },
+      select: TICKET_SELECT,
+    });
+    if (!ticket) return { success: false, error: NOT_FOUND };
+    return { success: true, entries: [toEntry(ticket, session.access.eventId)] };
+  } catch (error) {
+    console.error("Error looking up ticket:", error);
+    return { success: false, error: "No se pudo consultar el boleto. Inténtalo de nuevo." };
+  }
+}
+
+/** Search by name or short code within the session's event. */
+export async function searchTickets(key: string, query: string): Promise<LookupResult> {
+  try {
+    const outcome = await requireDoorSession(key, "door-lookup");
+    if (outcome.error !== undefined) return { success: false, error: outcome.error };
+    const { session } = outcome;
+
+    const q = parseSearchQuery(typeof query === "string" ? query : "");
+    if (!q) return { success: false, error: "Escribe al menos 2 caracteres" };
+
+    const tickets = await prisma.ticket.findMany({
+      where: {
+        eventId: session.access.eventId,
+        OR: [{ name: { contains: q.text, mode: "insensitive" } }, { code: { startsWith: q.code } }],
+      },
+      select: TICKET_SELECT,
+      orderBy: { name: "asc" },
+      take: SEARCH_LIMIT,
+    });
+    return { success: true, entries: tickets.map((t) => toEntry(t, session.access.eventId)) };
+  } catch (error) {
+    console.error("Error searching tickets:", error);
+    return { success: false, error: "No se pudo buscar. Inténtalo de nuevo." };
+  }
+}
+
+/** Single conditional update: of N simultaneous calls exactly one flips PAID -> CHECKED_IN. */
+export async function checkIn(key: string, ticketId: string): Promise<CheckInResult> {
+  try {
+    const outcome = await requireDoorSession(key);
+    if (outcome.error !== undefined) return { success: false, error: outcome.error };
+    const { session } = outcome;
+    if (typeof ticketId !== "string" || ticketId.length === 0 || ticketId.length > 100) {
+      return { success: false, error: NOT_FOUND };
+    }
+
+    const { count } = await prisma.ticket.updateMany({
+      where: { id: ticketId, eventId: session.access.eventId, status: "PAID" },
+      data: { status: "CHECKED_IN", checkedInAt: new Date(), checkedInBy: session.staffName },
+    });
+
+    const ticket = await prisma.ticket.findFirst({
+      where: { id: ticketId, eventId: session.access.eventId },
+      select: TICKET_SELECT,
+    });
+    if (!ticket) return { success: false, error: NOT_FOUND };
+    if (count === 1) return { success: true, ticket: toDoorTicketView(ticket) };
+
+    const decision = checkInDecision(ticket, session.access.eventId);
+    return {
+      success: false,
+      error: decision.kind === "allow" ? "No se pudo registrar el acceso. Inténtalo de nuevo." : decision.message,
+      ticket: toDoorTicketView(ticket),
+      decision,
+    };
+  } catch (error) {
+    console.error("Error checking in:", error);
+    return { success: false, error: "No se pudo registrar el acceso. Inténtalo de nuevo." };
+  }
+}
+
+class EmailTaken extends Error {}
+
+/** Cash walk-in: price and allowCash are read server-side; capacity is ignored by design. */
+export async function createWalkIn(key: string, input: unknown): Promise<WalkInResult> {
+  try {
+    const outcome = await requireDoorSession(key, "door-walkin");
+    if (outcome.error !== undefined) return { success: false, error: outcome.error };
+    const { session } = outcome;
+
+    const parsed = parseWalkIn(input);
+    if (parsed.errors) return { success: false, error: "Revisa los campos marcados.", fieldErrors: parsed.errors };
+    const { name, email, phone } = parsed.data;
+
+    const event = await prisma.event.findUnique({
+      where: { id: session.access.eventId },
+      select: { allowCash: true, priceCents: true, currency: true, isCancelled: true },
+    });
+    if (!event || event.isCancelled) return { success: false, error: "Este evento ya no está disponible." };
+    if (!event.allowCash) return { success: false, error: "El pago en efectivo no está habilitado para este evento." };
+
+    const status = initialStatus({ method: "CASH", priceCents: event.priceCents, channel: "door" });
+    const answers = phone ? { phone: { label: "Teléfono", value: phone } } : {};
+
+    const created = await createWithUniqueCode(
+      () => generateShortCode(randomInt),
+      async (code) => {
+        try {
+          return await prisma.ticket.create({
+            data: {
+              eventId: session.access.eventId,
+              code,
+              name,
+              email,
+              answers,
+              status,
+              paymentMethod: "CASH",
+              amountCents: event.priceCents,
+              currency: event.currency,
+              checkedInAt: new Date(),
+              checkedInBy: session.staffName,
+            },
+            select: TICKET_SELECT,
+          });
+        } catch (error) {
+          // The unique violation is either the short code (retry) or (eventId, email) (refuse).
+          if (email && isUniqueViolation(error)) {
+            const taken = await prisma.ticket.findUnique({
+              where: { eventId_email: { eventId: session.access.eventId, email } },
+              select: { id: true },
+            });
+            if (taken) throw new EmailTaken();
+          }
+          throw error;
+        }
+      },
+      isUniqueViolation,
+    );
+    return { success: true, ticket: toDoorTicketView(created) };
+  } catch (error) {
+    if (error instanceof EmailTaken) {
+      return { success: false, error: "Ese correo ya tiene boleto. Búscalo por nombre o código.", duplicateEmail: true };
+    }
+    console.error("Error creating walk-in:", error);
+    return { success: false, error: "No se pudo registrar al asistente. Inténtalo de nuevo." };
+  }
 }
