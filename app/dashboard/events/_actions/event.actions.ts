@@ -4,6 +4,9 @@ import prisma from "@/app/lib/prisma";
 import { getSession } from "@/lib/auth-server";
 import { serverErrorToSpanish } from "@/lib/error-messages";
 import { revalidatePath } from "next/cache";
+import { HOLDING_STATUSES } from "@/lib/ticketing/capacity";
+import { parseFormSchema } from "@/lib/ticketing/form-schema";
+import { registrationAvailability } from "@/lib/ticketing/registration";
 
 function generateSlug(title: string): string {
   const base = title
@@ -225,9 +228,38 @@ export async function getEventBySlug(slug: string) {
         time: true,
         location: true,
         imageUrl: true,
+        priceCents: true,
+        displayCapacity: true,
+        formSchema: true,
+        registrationOpen: true,
+        allowSpei: true,
+        // Used only to derive `availability`; never returned.
+        capacity: true,
       },
     });
-    return { success: true, data: event };
+    if (!event) return { success: true, data: null };
+
+    const held = await prisma.ticket.count({
+      where: { eventId: event.id, status: { in: [...HOLDING_STATUSES] } },
+    });
+    const availability = registrationAvailability(event, held);
+    return {
+      success: true,
+      data: {
+        id: event.id,
+        slug: event.slug,
+        title: event.title,
+        description: event.description,
+        date: event.date,
+        time: event.time,
+        location: event.location,
+        imageUrl: event.imageUrl,
+        priceCents: event.priceCents,
+        displayCapacity: event.displayCapacity,
+        formSchema: parseFormSchema(event.formSchema) ?? { version: 1 as const, fields: [] },
+        availability: availability.open ? ("open" as const) : availability.reason,
+      },
+    };
   } catch (error) {
     console.error("Error fetching event by slug:", error);
     const message = error instanceof Error ? error.message : String(error);
