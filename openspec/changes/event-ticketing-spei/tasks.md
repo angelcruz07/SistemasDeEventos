@@ -110,9 +110,9 @@ Files: migration `door_access` (DoorAccess only), `lib/ticketing/{door-pin,door-
 
 ### PR8: Check-in console (~400, base PR7)
 Files: `app/door/[key]/_actions/door.actions.ts`, `_components/{Scanner,TicketSearch,CheckInCard,WalkInForm}.tsx`.
-- [ ] 8.1 Run `bun info @yudiel/react-qr-scanner peerDependencies`; fallback `qr-scanner`; `next/dynamic` ssr:false.
-- [ ] 8.2 Lookup (forged/other-event rejected), atomic `updateMany` check-in, "Ya registrado a las HH:MM por X".
-- [ ] 8.3 Walk-in cash (email optional, ignores cap, requires `allowCash`).
+- [x] 8.1 Run `bun info @yudiel/react-qr-scanner peerDependencies`; fallback `qr-scanner`; `next/dynamic` ssr:false.
+- [x] 8.2 Lookup (forged/other-event rejected), atomic `updateMany` check-in, "Ya registrado a las HH:MM por X".
+- [x] 8.3 Walk-in cash (email optional, ignores cap, requires `allowCash`).
 - Verify: manual on two phones. Rollback: revert.
 
 ### PR9: Reporting (~250, base PR8)

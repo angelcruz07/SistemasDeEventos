@@ -107,3 +107,12 @@ Verification: vitest 223/223 (28 files); tsc clean; lint baseline (1 error Event
 Not verified: actions/pages not run against the DB or in a browser.
 Notes for PR8: use getDoorSession(key) in every door action; verify ticket.eventId === session.access.eventId; use toDoorTicketView; ticket check-in must be conditional updateMany.
 Next: PR8 (not started).
+
+## Batch 9: PR8 (branch feat/ticketing-pr8-checkin) - DONE
+- [x] 8.1 @yudiel/react-qr-scanner@2.6.0 (peerDependencies react/react-dom ^17||^18||^19), pinned; Scanner via next/dynamic ssr:false, qr_code only, 3s same-value debounce (pure isRepeatScan), Spanish camera-denied message, manual search always visible.
+- [x] 8.2 lib/ticketing/checkin.ts (parseScanInput, parseSearchQuery, checkInDecision, isRepeatScan); actions lookupTicket/searchTickets/checkIn (getDoorSession in every action, queries scoped by session eventId, toDoorTicketView, lookups rate-limited 600/10min per IP and per access, check-in = conditional updateMany PAID->CHECKED_IN then re-read decision); DoorConsole, Scanner, TicketSearch, CheckInCard; staff see answers (spec: show answers).
+- [x] 8.3 createWalkIn: allowCash/price/currency read server-side, status via initialStatus(door), CASH, capacity ignored, optional email (dup -> "Ese correo ya tiene boleto"), phone stored in answers, unique code retry; no emails sent. WalkInForm only shown when allowCash.
+Strict TDD: checkin.test.ts RED (module not found; isRepeatScan not a function) then GREEN.
+Verification: vitest 242/242 (29 files); tsc clean; lint baseline; build OK.
+Not verified: actions/UI not run against DB or browser.
+Next: PR9 (not started).
