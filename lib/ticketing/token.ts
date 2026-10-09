@@ -2,6 +2,8 @@ import { createHmac, timingSafeEqual } from "node:crypto";
 
 const TICKET_PURPOSE = "ticket:v1:";
 const DOOR_PURPOSE = "door:v1:";
+const MIN_SECRET_LENGTH = 32;
+const B64URL_RE = /^[A-Za-z0-9_-]+$/;
 
 export interface DoorSessionPayload {
   accessId: string;
@@ -13,13 +15,26 @@ export interface DoorSessionPayload {
 
 const b64 = (value: string) => Buffer.from(value, "utf8").toString("base64url");
 
+function assertSecret(secret: string): void {
+  if (secret.length < MIN_SECRET_LENGTH) {
+    throw new Error(`Signing secret must be at least ${MIN_SECRET_LENGTH} characters`);
+  }
+}
+
 function mac(secret: string, purpose: string, data: string): Buffer {
   return createHmac("sha256", secret).update(purpose + data).digest();
 }
 
+/** Decodes a base64url part only when it is canonical (no lenient or malleable forms). */
+function decodeCanonical(part: string): Buffer | null {
+  if (!B64URL_RE.test(part)) return null;
+  const decoded = Buffer.from(part, "base64url");
+  return decoded.toString("base64url") === part ? decoded : null;
+}
+
 function signatureMatches(expected: Buffer, provided: string): boolean {
-  const actual = Buffer.from(provided, "base64url");
-  if (actual.length !== expected.length) return false;
+  const actual = decodeCanonical(provided);
+  if (!actual || actual.length !== expected.length) return false;
   return timingSafeEqual(actual, expected);
 }
 
@@ -30,18 +45,23 @@ function split(token: string): [string, string] | null {
 }
 
 export function signTicketToken(ticketId: string, secret: string): string {
+  assertSecret(secret);
   return `${b64(ticketId)}.${mac(secret, TICKET_PURPOSE, ticketId).toString("base64url")}`;
 }
 
 export function verifyTicketToken(token: string, secret: string): string | null {
+  assertSecret(secret);
   const parts = split(token);
   if (!parts) return null;
-  const id = Buffer.from(parts[0], "base64url").toString("utf8");
-  if (!id) return null;
+  const idBytes = decodeCanonical(parts[0]);
+  if (!idBytes) return null;
+  const id = idBytes.toString("utf8");
+  if (!id || b64(id) !== parts[0]) return null;
   return signatureMatches(mac(secret, TICKET_PURPOSE, id), parts[1]) ? id : null;
 }
 
 export function signDoorSession(payload: DoorSessionPayload, secret: string): string {
+  assertSecret(secret);
   const body = b64(JSON.stringify(payload));
   return `${body}.${mac(secret, DOOR_PURPOSE, body).toString("base64url")}`;
 }
@@ -51,8 +71,10 @@ export function verifyDoorSession(
   secret: string,
   now: Date,
 ): DoorSessionPayload | null {
+  assertSecret(secret);
   const parts = split(token);
-  if (!parts || !signatureMatches(mac(secret, DOOR_PURPOSE, parts[0]), parts[1])) return null;
+  if (!parts || !decodeCanonical(parts[0])) return null;
+  if (!signatureMatches(mac(secret, DOOR_PURPOSE, parts[0]), parts[1])) return null;
   try {
     const p = JSON.parse(Buffer.from(parts[0], "base64url").toString("utf8"));
     if (

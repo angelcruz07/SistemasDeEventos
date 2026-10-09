@@ -90,3 +90,29 @@ describe("door session", () => {
     ).toBeNull();
   });
 });
+
+describe("malleability", () => {
+  it("rejects non-canonical ticket tokens", () => {
+    const [id, sig] = signTicketToken("ticket-1", SECRET).split(".");
+    expect(verifyTicketToken(`${id}!.${sig}`, SECRET)).toBeNull();
+    expect(verifyTicketToken(`${id}.${sig}=`, SECRET)).toBeNull();
+    expect(verifyTicketToken(`${id}.${sig}!`, SECRET)).toBeNull();
+  });
+
+  it("rejects non-canonical door session tokens", () => {
+    const [body, sig] = signDoorSession(session, SECRET).split(".");
+    expect(verifyDoorSession(`${body}.${sig}=`, SECRET, NOW)).toBeNull();
+    expect(verifyDoorSession(`${body}.${sig}!`, SECRET, NOW)).toBeNull();
+    expect(verifyDoorSession(`${body}!.${sig}`, SECRET, NOW)).toBeNull();
+  });
+});
+
+describe("secret length", () => {
+  it("throws on a short secret for every operation", () => {
+    const short = "x".repeat(31);
+    expect(() => signTicketToken("a", short)).toThrow();
+    expect(() => verifyTicketToken("a.b", short)).toThrow();
+    expect(() => signDoorSession(session, short)).toThrow();
+    expect(() => verifyDoorSession("a.b", short, NOW)).toThrow();
+  });
+});
