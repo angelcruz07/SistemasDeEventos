@@ -73,3 +73,13 @@ Verification: vitest 136/136 (16 files); tsc clean; lint baseline (1 error Event
 Not verified: rate-limit SQL and the FOR UPDATE transaction were not run against a DB (only DB is the remote one; no local docker).
 Notes for PR5: receipt upload MUST lock the same Event row (SELECT ... FOR UPDATE) and re-check capacity (held < capacity) before PENDING_RECEIPT/REJECTED -> PENDING_VALIDATION. Ticket page URL is /ticket/{token}; QR image URL is /api/tickets/{token}/qr.png (emails already link to both).
 Next: PR5 (not started).
+
+## Batch 6: PR5 (branch feat/ticketing-pr5-ticket-receipt) - DONE
+- [x] 5.1 `/ticket/[token]` page (verify token -> notFound; view by status via pure `ticketViewFor`; explicit select, no Receipt bytes; metadata referrer no-referrer + robots noindex; no nav; SpeiInstructions, ReceiptUpload, TicketCard)
+- [x] 5.2 `POST /api/tickets/[token]/receipt`: token, Content-Length required and guarded (5.5 MiB), per-IP (skipped without IP) and per-ticket limits (1h), sniffed MIME via validateReceiptFile, tx with Event FOR UPDATE, `decideReceiptUpload` (status + capacity re-check, lowered capacity = full), Receipt created (history kept, 1:N), conditional updateMany to PENDING_VALIDATION (count != 1 rolls back)
+- [x] 5.3 `GET /api/tickets/[token]/qr.png` (PAID/CHECKED_IN only, else 404; QR encodes the signed ticket token string; private no-store, nosniff)
+Strict TDD: ticket-view and receipt-upload tests written first, RED (module not found), then GREEN.
+Verification: vitest 161/161 (20 files); tsc clean; lint baseline (1 error EventsList, 2 warnings); build OK.
+Not verified: routes/transaction not run against a DB.
+Notes for PR6: receipt serving route must use Content-Disposition attachment, nosniff, and the stored mimeType (sniffed at upload). Review actions that change status should use conditional updateMany.
+Next: PR6 (not started).

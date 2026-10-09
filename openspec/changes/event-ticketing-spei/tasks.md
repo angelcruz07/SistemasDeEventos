@@ -87,9 +87,9 @@ Files: `lib/email/{email-sender,resend-sender,console-sender,templates}.ts`, `li
 
 ### PR5: Ticket page + receipt upload (~380, base PR4)
 Files: `app/ticket/[token]/page.tsx`, `_components/{ReceiptUpload,SpeiInstructions,TicketCard}.tsx`, `app/api/tickets/[token]/{receipt,qr.png}/route.ts`.
-- [ ] 5.1 Token-gated page by status; fixed default design; no nav; unknown token -> `notFound()`.
-- [ ] 5.2 Receipt route: Content-Length guard, size, sniffed mime, rate limit, tx with `FOR UPDATE` + capacity, insert Receipt, status transition.
-- [ ] 5.3 `qr.png` route (PAID/CHECKED_IN only).
+- [x] 5.1 Token-gated page by status; fixed default design; no nav; unknown token -> `notFound()`.
+- [x] 5.2 Receipt route: Content-Length guard, size, sniffed mime, rate limit, tx with `FOR UPDATE` + capacity, insert Receipt, status transition.
+- [x] 5.3 `qr.png` route (PAID/CHECKED_IN only).
 - Verify: tsc, lint; manual: spoofed png, 6MB, bad token, re-upload after reject. Rollback: revert.
 
 ### PR6: Organizer review (~400, base PR5)
