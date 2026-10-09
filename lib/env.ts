@@ -11,6 +11,14 @@ type EnvSource = Record<string, string | undefined>;
 const MIN_SIGNING_SECRET_LENGTH = 32;
 const DEV_APP_URL = "http://localhost:3000";
 
+function isLocalUrl(url: string): boolean {
+  try {
+    return ["localhost", "127.0.0.1", "[::1]"].includes(new URL(url).hostname);
+  } catch {
+    return false;
+  }
+}
+
 /**
  * Fail-fast reader for ticketing/email env vars. Pure over `source` so it can be
  * tested; call `getTicketingEnv()` from server code that actually needs them, so
@@ -36,9 +44,14 @@ export function readTicketingEnv(source: EnvSource): TicketingEnv {
   }
 
   const appUrl = productionOnly("NEXT_PUBLIC_APP_URL") ?? DEV_APP_URL;
+  const resendApiKey = productionOnly("RESEND_API_KEY");
+  // Safety net for deploys with a wrong NODE_ENV: a public URL without a mail key must not silently use the console sender.
+  if (!resendApiKey && !isLocalUrl(appUrl)) {
+    throw new Error("Missing required environment variable: RESEND_API_KEY (NEXT_PUBLIC_APP_URL is not localhost)");
+  }
   return {
     signingSecret,
-    resendApiKey: productionOnly("RESEND_API_KEY"),
+    resendApiKey,
     emailFrom: productionOnly("EMAIL_FROM"),
     appUrl: appUrl.replace(/\/+$/, ""),
   };

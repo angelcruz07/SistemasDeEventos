@@ -1,6 +1,7 @@
 import prisma from "@/app/lib/prisma";
 import { formatEventDate } from "@/lib/datetime";
 import { sendEmail } from "@/lib/email/email-sender";
+import { redactEmails } from "@/lib/email/redact";
 import { renderRegistrationReceived, renderTicketIssued, type RenderedEmail } from "@/lib/email/templates";
 import { getTicketingEnv } from "@/lib/env";
 import { formatMxn } from "@/lib/ticketing/money";
@@ -23,11 +24,6 @@ export interface TicketEmailEvent {
   speiClabe: string | null;
   speiBank: string | null;
   speiBeneficiary: string | null;
-}
-
-/** Provider errors can echo the recipient; never log addresses. */
-function redact(message: string): string {
-  return message.replace(/[^\s@<>"']+@[^\s@<>"']+/g, "[email]");
 }
 
 /**
@@ -77,7 +73,7 @@ export async function sendTicketEmail(
 
     const result = await sendEmail({ ...rendered, to: ticket.email });
     if (!result.ok) {
-      console.error(`Ticket email failed (kind=${kind}, ticket=${ticket.id}): ${redact(result.error)}`);
+      console.error(`Ticket email failed (kind=${kind}, ticket=${ticket.id}): ${redactEmails(result.error)}`);
       return false;
     }
 
@@ -87,7 +83,7 @@ export async function sendTicketEmail(
     });
     return true;
   } catch (error) {
-    const message = error instanceof Error ? redact(error.message) : "unknown error";
+    const message = error instanceof Error ? redactEmails(error.message) : "unknown error";
     console.error(`Ticket email crashed (kind=${kind}, ticket=${ticket.id}): ${message}`);
     return false;
   }

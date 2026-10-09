@@ -30,6 +30,24 @@ describe("readTicketingEnv", () => {
     });
   });
 
+  it("throws when a non-local app URL has no Resend key (misconfigured deploy)", () => {
+    const staging = {
+      TICKET_SIGNING_SECRET: good.TICKET_SIGNING_SECRET,
+      NODE_ENV: "development",
+      NEXT_PUBLIC_APP_URL: "https://staging.example.com",
+    };
+    expect(() => readTicketingEnv(staging)).toThrow(/RESEND_API_KEY/);
+    expect(readTicketingEnv({ ...staging, RESEND_API_KEY: "re_x", EMAIL_FROM: "a <a@b.co>" }).appUrl).toBe(
+      "https://staging.example.com",
+    );
+  });
+
+  it("allows localhost URLs without a Resend key", () => {
+    const base = { TICKET_SIGNING_SECRET: good.TICKET_SIGNING_SECRET, NODE_ENV: "development" };
+    expect(readTicketingEnv({ ...base, NEXT_PUBLIC_APP_URL: "http://localhost:3001" }).appUrl).toBe("http://localhost:3001");
+    expect(readTicketingEnv({ ...base, NEXT_PUBLIC_APP_URL: "http://127.0.0.1:3000" }).resendApiKey).toBeUndefined();
+  });
+
   it("still requires the signing secret outside production", () => {
     expect(() => readTicketingEnv({ NODE_ENV: "development" })).toThrow(/TICKET_SIGNING_SECRET/);
   });
