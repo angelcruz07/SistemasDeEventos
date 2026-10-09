@@ -2,7 +2,12 @@ import prisma from "@/app/lib/prisma";
 import { formatEventDate } from "@/lib/datetime";
 import { sendEmail } from "@/lib/email/email-sender";
 import { redactEmails } from "@/lib/email/redact";
-import { renderRegistrationReceived, renderTicketIssued, type RenderedEmail } from "@/lib/email/templates";
+import {
+  renderRegistrationReceived,
+  renderTicketIssued,
+  renderTicketRejected,
+  type RenderedEmail,
+} from "@/lib/email/templates";
 import { getTicketingEnv } from "@/lib/env";
 import { formatMxn } from "@/lib/ticketing/money";
 import { formatShortCode } from "@/lib/ticketing/short-code";
@@ -32,9 +37,10 @@ export interface TicketEmailEvent {
  * the caller. Returns whether the email was sent.
  */
 export async function sendTicketEmail(
-  kind: "received" | "ticket",
+  kind: "received" | "ticket" | "rejected",
   ticket: TicketEmailTicket,
   event: TicketEmailEvent,
+  reason = "",
 ): Promise<boolean> {
   try {
     const { signingSecret, appUrl } = getTicketingEnv();
@@ -55,6 +61,8 @@ export async function sendTicketEmail(
         time: event.time,
         location: event.location,
       });
+    } else if (kind === "rejected") {
+      rendered = renderTicketRejected({ ...base, reason });
     } else {
       const hasSpei = event.priceCents > 0 && event.speiClabe && event.speiBank && event.speiBeneficiary;
       rendered = renderRegistrationReceived({
@@ -77,10 +85,12 @@ export async function sendTicketEmail(
       return false;
     }
 
-    await prisma.ticket.update({
-      where: { id: ticket.id },
-      data: kind === "ticket" ? { ticketEmailSentAt: new Date() } : { registrationEmailSentAt: new Date() },
-    });
+    if (kind !== "rejected") {
+      await prisma.ticket.update({
+        where: { id: ticket.id },
+        data: kind === "ticket" ? { ticketEmailSentAt: new Date() } : { registrationEmailSentAt: new Date() },
+      });
+    }
     return true;
   } catch (error) {
     const message = error instanceof Error ? redactEmails(error.message) : "unknown error";

@@ -94,10 +94,10 @@ Files: `app/ticket/[token]/page.tsx`, `_components/{ReceiptUpload,SpeiInstructio
 
 ### PR6: Organizer review (~400, base PR5)
 Files: `[id]/attendees/page.tsx`, `_components/{AttendeesTable,ReceiptDialog}.tsx`, `_actions/review.actions.ts`, `app/api/receipts/[receiptId]/route.ts`, `lib/server/receipts-purge.ts`, optional `app/api/cron/purge-receipts/route.ts`.
-- [ ] 6.1 Attendees list: status filter, search name/email/code.
-- [ ] 6.2 Approve/reject via conditional `updateMany`; reason required; email once; resend/cancel.
-- [ ] 6.3 Receipt route (owner only, no-store, nosniff, 410 if purged).
-- [ ] 6.4 `purgeExpiredReceipts()` (lazy + optional cron with `CRON_SECRET`).
+- [x] 6.1 Attendees list: status filter, search name/email/code.
+- [x] 6.2 Approve/reject via conditional `updateMany`; reason required; email once; resend/cancel.
+- [x] 6.3 Receipt route (owner only, no-store, nosniff, 410 if purged).
+- [x] 6.4 `purgeExpiredReceipts()` (lazy + optional cron with `CRON_SECRET`).
 - Verify: tsc, lint, vitest; manual: double approve sends one email, staff/anon denied. Rollback: revert.
 
 ## S2

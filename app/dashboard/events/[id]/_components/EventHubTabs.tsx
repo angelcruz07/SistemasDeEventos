@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils";
 // Attendees, door and design tabs are added by later changes.
 const TABS = [
   { segment: "ticketing", label: "Boletos y pagos" },
+  { segment: "attendees", label: "Asistentes" },
   { segment: "form", label: "Formulario" },
 ];
 

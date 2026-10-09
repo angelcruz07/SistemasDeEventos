@@ -86,3 +86,13 @@ Next: PR6 (not started).
 
 Review fixes (PR5): body read is now streamed with a byte cap (missing Content-Length allowed, early 413 when present and too large); per-ticket limit 20/h; cancelled event shows the cancelled view.
 Notes for PR6: the purge job must also purge superseded receipts (older Receipt rows of the same ticket); the organizer view must read the latest receipt by uploadedAt.
+
+## Batch 7: PR6 (branch feat/ticketing-pr6-organizer-review) - DONE
+- [x] 6.1 Attendees tab (`/dashboard/events/[id]/attendees`): status counts, URL-driven status filter + search (name/email/normalized short code), pagination (25), mobile-friendly list; latest receipt metadata only (never bytes). Pure: `lib/ticketing/attendees.ts`.
+- [x] 6.2 `review.actions.ts`: approve/reject via conditional `updateMany` (PENDING_VALIDATION), email only when count===1 via `after()`; reject reason required (max 300); resend by status; cancel conditional on observed status. Every action re-checks ownership via `getOwnedEvent` and ticket.eventId. `sendTicketEmail` extended with kind "rejected" (+reason). Pure: `lib/ticketing/review.ts`. UI: `AttendeesList`, `ReceiptDialog`.
+- [x] 6.3 `GET /api/receipts/[receiptId]`: session + owner else 404, 410 if purged; headers from `receiptHeaders` (images inline + nosniff + CSP sandbox, PDF/other attachment, private no-store).
+- [x] 6.4 `purgeExpiredReceipts(now)` (bounded batch 500; expired events >30d + superseded), lazy via `after()` on attendees page, optional `GET /api/cron/purge-receipts` (CRON_SECRET Bearer, timingSafeEqual over hashes; 404 unset, 401 mismatch). `.env.template` documents CRON_SECRET.
+Strict TDD: attendees, review, receipt-purge, receipt-response, cron-auth tests RED (module not found) then GREEN.
+Verification: vitest 199/199 (26 files); tsc clean; lint baseline (1 error EventsList, 2 warnings); build OK.
+Not verified: actions, routes, purge queries not run against a DB.
+Next: PR7 (not started).
