@@ -62,3 +62,14 @@ Next: PR4 (not started).
 Notes for PR4:
 - Registration/receipt flow must handle capacity lowered below already-held tickets: treat as full (never negative remaining).
 - displayCapacity is marketing-only; never use it for enforcement.
+
+## Batch 5: PR4 (branch feat/ticketing-pr4-registration) - DONE
+- [x] 4.1 resend@6.32.1; EmailSender port, ResendSender, ConsoleSender (non-production fallback only), templates (received, ticket, rejected; HTML-escaped, subject CRLF-stripped); lib/env.ts: signing secret always required, RESEND_API_KEY/EMAIL_FROM/NEXT_PUBLIC_APP_URL required only in production (dev: console sender, localhost:3000)
+- [x] 4.2 lib/server/rate-limit.ts (single upsert SQL, fails closed on DB error) + request-keys.ts (getClientIp first XFF hop with IP-shape check; rateLimitKey hashes the value)
+- [x] 4.3 registerForEvent: IP 10/10min and event+email 3/10min; tx with SELECT ... FOR UPDATE on Event, re-read event inside lock, duplicate -> re-send link with same generic response, closed/full refused for new emails, FREE -> PAID, paid -> PENDING_RECEIPT; short-code collision retried around the whole tx (P2002); email after commit, best-effort, registrationEmailSentAt / ticketEmailSentAt only on success
+- [x] 4.4 getEventBySlug now returns price, displayCapacity, parsed formSchema and `availability` (capacity never returned); public page with RegistrationForm, "Gratis"/price, ShareEventButton; header link and share-QR block removed
+Strict TDD: env, templates, registration rules, request-keys, formatEventDate written first and run RED (module/function missing).
+Verification: vitest 136/136 (16 files); tsc clean; lint baseline (1 error EventsList, 2 warnings); build OK.
+Not verified: rate-limit SQL and the FOR UPDATE transaction were not run against a DB (only DB is the remote one; no local docker).
+Notes for PR5: receipt upload MUST lock the same Event row (SELECT ... FOR UPDATE) and re-check capacity (held < capacity) before PENDING_RECEIPT/REJECTED -> PENDING_VALIDATION. Ticket page URL is /ticket/{token}; QR image URL is /api/tickets/{token}/qr.png (emails already link to both).
+Next: PR5 (not started).

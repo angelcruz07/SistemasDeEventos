@@ -79,10 +79,10 @@ Files: `lib/server/guards.ts`, `lib/env.ts`, `app/dashboard/events/[id]/{layout,
 
 ### PR4: Public registration + email (~400, base PR3)
 Files: `lib/email/{email-sender,resend-sender,console-sender,templates}.ts`, `lib/server/rate-limit.ts`, `app/event/[slug]/page.tsx`, `_components/{RegistrationForm,ShareEventButton}.tsx`, `_actions/registration.actions.ts`.
-- [ ] 4.1 `npm i resend`; EmailSender port, Resend/Console senders, templates (received, rejected, ticket).
-- [ ] 4.2 DB fixed-window `rate-limit.ts` (single upsert SQL).
-- [ ] 4.3 `registerForEvent`: validate, capacity/open, dedupe by email (resend link, generic response), FREE -> PAID + ticket email, set `registrationEmailSentAt`.
-- [ ] 4.4 Dynamic form render, price, display number, share button; remove "Volver a eventos" link.
+- [x] 4.1 `npm i resend`; EmailSender port, Resend/Console senders, templates (received, rejected, ticket).
+- [x] 4.2 DB fixed-window `rate-limit.ts` (single upsert SQL).
+- [x] 4.3 `registerForEvent`: validate, capacity/open, dedupe by email (resend link, generic response), FREE -> PAID + ticket email, set `registrationEmailSentAt`.
+- [x] 4.4 Dynamic form render, price, display number, share button; remove "Volver a eventos" link.
 - Verify: tsc, lint, vitest; manual: duplicate email, provider down (ticket still created), closed/full refused. Rollback: revert; no data migration.
 
 ### PR5: Ticket page + receipt upload (~380, base PR4)
