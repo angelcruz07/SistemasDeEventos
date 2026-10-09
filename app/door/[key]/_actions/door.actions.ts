@@ -7,7 +7,7 @@ import { getTicketingEnv } from "@/lib/env";
 import { DOOR_COOKIE, DOOR_SESSION_MS, doorCookiePath, findActiveDoorAccess } from "@/lib/server/door-session";
 import { hitRateLimit } from "@/lib/server/rate-limit";
 import { getClientIp, rateLimitKey } from "@/lib/server/request-keys";
-import { isLocked, nextLockout, parseStaffName, verifyPin } from "@/lib/ticketing/door-pin";
+import { MAX_FAILED_ATTEMPTS, nextLockout, parseStaffName, verifyPin } from "@/lib/ticketing/door-pin";
 import { signDoorSession } from "@/lib/ticketing/token";
 
 export type UnlockResult = { success: true } | { success: false; error: string };
@@ -33,26 +33,34 @@ export async function unlockDoor(key: string, pin: string, staffName: string): P
     }
 
     const now = new Date();
-    if (isLocked(access.lockedUntil, now)) return { success: false, error: TOO_MANY };
+    const nowIso = now.toISOString();
+
+    // Reserve an attempt BEFORE the slow scrypt, in one conditional statement: it only
+    // succeeds while the access is unlocked and under the failure budget, so parallel
+    // guesses cannot exceed MAX_FAILED_ATTEMPTS and nothing runs scrypt once locked.
+    const reserved = await prisma.$executeRaw`
+      UPDATE "DoorAccess" SET "failedAttempts" = "failedAttempts" + 1
+      WHERE "id" = ${access.id} AND "revokedAt" IS NULL
+        AND ("lockedUntil" IS NULL OR "lockedUntil" <= ${nowIso}::timestamp)
+        AND "failedAttempts" < ${MAX_FAILED_ATTEMPTS}`;
+    if (reserved !== 1) return { success: false, error: TOO_MANY };
 
     if (!(await verifyPin(typeof pin === "string" ? pin.trim() : "", access.pinHash))) {
-      // Atomic increment: concurrent wrong guesses cannot undercount.
-      const { failedAttempts } = await prisma.doorAccess.update({
-        where: { id: access.id },
-        data: { failedAttempts: { increment: 1 } },
-        select: { failedAttempts: true },
-      });
-      const lockedUntil = nextLockout(failedAttempts, now);
-      if (lockedUntil) {
-        await prisma.doorAccess.update({ where: { id: access.id }, data: { lockedUntil, failedAttempts: 0 } });
-        return { success: false, error: TOO_MANY };
-      }
-      return { success: false, error: "PIN incorrecto." };
+      // Lock once the budget is spent. Guarded so a lock that already landed is never extended.
+      const lockedUntil = nextLockout(MAX_FAILED_ATTEMPTS, now) as Date;
+      const locked = await prisma.$executeRaw`
+        UPDATE "DoorAccess" SET "lockedUntil" = ${lockedUntil.toISOString()}::timestamp, "failedAttempts" = 0
+        WHERE "id" = ${access.id} AND "failedAttempts" >= ${MAX_FAILED_ATTEMPTS}
+          AND ("lockedUntil" IS NULL OR "lockedUntil" <= ${nowIso}::timestamp)`;
+      return { success: false, error: locked === 1 ? TOO_MANY : "PIN incorrecto." };
     }
 
-    if (access.failedAttempts > 0 || access.lockedUntil) {
-      await prisma.doorAccess.update({ where: { id: access.id }, data: { failedAttempts: 0, lockedUntil: null } });
-    }
+    // Correct PIN: reset only if no lock landed meanwhile and the access is still active.
+    const reset = await prisma.$executeRaw`
+      UPDATE "DoorAccess" SET "failedAttempts" = 0, "lockedUntil" = NULL
+      WHERE "id" = ${access.id} AND "revokedAt" IS NULL
+        AND ("lockedUntil" IS NULL OR "lockedUntil" <= ${nowIso}::timestamp)`;
+    if (reset !== 1) return { success: false, error: TOO_MANY };
 
     const exp = now.getTime() + DOOR_SESSION_MS;
     const token = signDoorSession(
