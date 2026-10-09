@@ -137,6 +137,13 @@ export function validateSchemaEdit(
   answeredFieldIds: ReadonlySet<string>,
 ): SchemaEditResult {
   const nextById = new Map(next.fields.map((f) => [f.id, f]));
+  // Answered ids are locked even when `current` does not list them (e.g. a corrupt stored schema).
+  const knownIds = new Set(current.fields.map((f) => f.id));
+  for (const id of answeredFieldIds) {
+    if (!knownIds.has(id) && !nextById.has(id)) {
+      return { ok: false, error: `No puedes eliminar el campo "${id}": ya tiene respuestas` };
+    }
+  }
   for (const field of current.fields) {
     if (!answeredFieldIds.has(field.id)) continue;
     const updated = nextById.get(field.id);

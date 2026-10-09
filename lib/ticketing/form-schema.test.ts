@@ -192,3 +192,15 @@ describe("limits and number format", () => {
     expect(validateAnswers(schema, { ...base, email })).toMatchObject({ errors: { email: expect.any(String) } });
   });
 });
+
+describe("validateSchemaEdit with unknown current schema", () => {
+  const empty: FormSchema = { version: 1, fields: [] };
+  const keep: FormSchema = { version: 1, fields: [{ id: "f1", type: "text", label: "A", required: false }] };
+
+  it("still locks answered ids that the current schema does not list", () => {
+    expect(validateSchemaEdit(empty, empty, new Set(["f1"]))).toMatchObject({ ok: false });
+  });
+  it("accepts when the answered id is kept", () => {
+    expect(validateSchemaEdit(empty, keep, new Set(["f1"]))).toEqual({ ok: true });
+  });
+});
