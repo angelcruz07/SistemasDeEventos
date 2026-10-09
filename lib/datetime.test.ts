@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatMx } from "./datetime";
+import { formatEventDate, formatMx } from "./datetime";
 
 describe("formatMx", () => {
   it("renders a UTC instant in Mexico City time (UTC-6, no DST)", () => {
@@ -17,5 +17,15 @@ describe("formatMx", () => {
 
   it("accepts ISO strings", () => {
     expect(formatMx("2026-06-15T18:00:00Z")).toBe("15/06/2026 12:00");
+  });
+});
+
+describe("formatEventDate", () => {
+  it("renders a date-only event (stored as UTC midnight) without shifting the day", () => {
+    expect(formatEventDate(new Date("2026-10-31T00:00:00Z"))).toBe("sábado, 31 de octubre de 2026");
+  });
+
+  it("works for another date", () => {
+    expect(formatEventDate("2026-01-01T00:00:00Z")).toBe("jueves, 1 de enero de 2026");
   });
 });

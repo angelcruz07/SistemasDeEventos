@@ -17,3 +17,16 @@ export function formatMx(date: Date | string): string {
   );
   return `${parts.day}/${parts.month}/${parts.year} ${parts.hour}:${parts.minute}`;
 }
+
+const eventDateFormatter = new Intl.DateTimeFormat("es-MX", {
+  timeZone: "UTC",
+  weekday: "long",
+  day: "numeric",
+  month: "long",
+  year: "numeric",
+});
+
+/** Events store a calendar date as UTC midnight; format in UTC so the day never shifts. */
+export function formatEventDate(date: Date | string): string {
+  return eventDateFormatter.format(new Date(date));
+}
