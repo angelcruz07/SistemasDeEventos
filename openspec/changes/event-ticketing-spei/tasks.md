@@ -61,12 +61,12 @@ Files: `prisma/schema.prisma`, `prisma/migrations/*_ticketing/`, delete `Confirm
 
 ### PR2: Domain modules, test-first (~400, base PR1)
 Files: `lib/ticketing/{token,short-code,status,capacity,form-schema,money,clabe,payment,receipt-file}.ts` + `.test.ts` each.
-- [ ] 2.1 RED/GREEN `token` (sign/verify, tamper, wrong secret, purpose separation, door session).
-- [ ] 2.2 `short-code` (alphabet excludes I L O U, normalize O->0, I/L->1, strips `-`, collision retry helper).
-- [ ] 2.3 `status` (every transition in table, invalid refused, `initialStatus`).
-- [ ] 2.4 `capacity` (HOLDING set, `hasSpot`, `isRegistrationOpen`, rejected frees spot).
-- [ ] 2.5 `form-schema` (parse, `validateAnswers`, `validateSchemaEdit` lock, invalid email).
-- [ ] 2.6 `money`, `clabe` (check digit), `payment` policies, `receipt-file` (magic bytes, spoofed .exe, 5 MiB).
+- [x] 2.1 RED/GREEN `token` (sign/verify, tamper, wrong secret, purpose separation, door session).
+- [x] 2.2 `short-code` (alphabet excludes I L O U, normalize O->0, I/L->1, strips `-`, collision retry helper).
+- [x] 2.3 `status` (every transition in table, invalid refused, `initialStatus`).
+- [x] 2.4 `capacity` (HOLDING set, `hasSpot`, `isRegistrationOpen`, rejected frees spot).
+- [x] 2.5 `form-schema` (parse, `validateAnswers`, `validateSchemaEdit` lock, invalid email).
+- [x] 2.6 `money`, `clabe` (check digit), `payment` policies, `receipt-file` (magic bytes, spoofed .exe, 5 MiB).
 - Verify: `bunx vitest run` green, tsc, lint. Rollback: revert (pure code).
 
 ### PR3: Organizer config hub (~400, base PR2)

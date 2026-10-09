@@ -21,3 +21,14 @@ Next: PR1 (not started).
 Verification: tsc clean; vitest 4/4; lint 3 problems (1 error EventsList set-state-in-effect pre-existing, 2 warnings); build OK.
 Note: public /event/[slug] has no registration form until PR4.
 Next: PR2 (not started).
+
+## Batch 3: PR2 (branch feat/ticketing-pr2-domain) - DONE
+- [x] 2.1 token (ticket + door session, purpose-separated HMAC, timingSafeEqual with length guard, injected `now` for expiry)
+- [x] 2.2 short-code (injected randInt; CODE_ALPHABET 32 chars; `formatShortCode` -> 7K3-Q9M; `createWithUniqueCode` retries 5x)
+- [x] 2.3 status (full transition matrix test; CHECKED_IN and CANCELLED are terminal; `initialStatus` throws on impossible method/channel combos)
+- [x] 2.4 capacity (`HOLDING_STATUSES`, `countHeld`, `hasSpot`, `isRegistrationOpen(event, held)` returns `{open}|{open:false,reason}`; no `now` param, no date rule in spec)
+- [x] 2.5 form-schema (`parseFormSchema`, `validateAnswers` returns `{data}|{errors}`, `validateSchemaEdit(current, next, answeredFieldIds)` per spec lock: add/relabel ok, no delete or type change of answered fields)
+- [x] 2.6 money, clabe, payment (policies + `policyFor`), receipt-file (`validateReceiptFile`)
+Strict TDD: each module's test written first and run RED (module not found) before implementation.
+Verification: vitest 73/73 (10 files); see report for tsc/lint.
+Next: PR3 (not started).
