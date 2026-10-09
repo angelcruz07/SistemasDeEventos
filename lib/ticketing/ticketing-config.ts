@@ -31,7 +31,8 @@ export type ParsedTicketingConfig =
   | { errors: Record<string, string> };
 
 const MAX_COUNT = 1_000_000;
-const MAX_TEXT = 120;
+const MAX_TEXT = 100;
+const MAX_PRICE_CENTS = 10_000_000; // 100,000 MXN, far below the Int column limit
 
 function parseOptionalCount(raw: string): number | null | "invalid" {
   const text = raw.trim();
@@ -50,6 +51,7 @@ export function parseTicketingConfig(input: TicketingConfigInput): ParsedTicketi
 
   const priceCents = parsePesosToCents(input.price.trim() === "" ? "0" : input.price);
   if (priceCents === null) errors.price = "Ingresa un precio válido (por ejemplo 350 o 350.50)";
+  else if (priceCents > MAX_PRICE_CENTS) errors.price = "El precio máximo es $100,000.00";
 
   if (priceCents !== null && priceCents > 0 && !input.allowSpei && !input.allowCash) {
     errors.methods = "Activa al menos un método de pago para un evento con precio";
@@ -60,9 +62,11 @@ export function parseTicketingConfig(input: TicketingConfigInput): ParsedTicketi
   const beneficiary = input.speiBeneficiary.trim();
   if (priceCents !== null && priceCents > 0 && input.allowSpei) {
     if (!clabe) errors.speiClabe = "La CLABE es obligatoria para recibir SPEI";
-    else if (!isValidClabe(clabe)) errors.speiClabe = "La CLABE no es válida (18 dígitos con dígito verificador)";
     if (!bank) errors.speiBank = "El banco es obligatorio para recibir SPEI";
     if (!beneficiary) errors.speiBeneficiary = "El beneficiario es obligatorio para recibir SPEI";
+  }
+  if (clabe && !isValidClabe(clabe)) {
+    errors.speiClabe = "La CLABE no es válida (18 dígitos con dígito verificador)";
   }
   if (bank.length > MAX_TEXT) errors.speiBank = "El banco es demasiado largo";
   if (beneficiary.length > MAX_TEXT) errors.speiBeneficiary = "El beneficiario es demasiado largo";

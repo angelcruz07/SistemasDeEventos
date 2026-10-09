@@ -103,3 +103,23 @@ describe("collectAnsweredFieldIds", () => {
     expect([...ids].sort()).toEqual(["a", "b"]);
   });
 });
+
+describe("parseTicketingConfig hardening", () => {
+  it("caps the price at 100,000 pesos", () => {
+    const ok = parseTicketingConfig(input({ price: "100000" }));
+    expect("data" in ok && ok.data.priceCents).toBe(10_000_000);
+    expect(errorsOf(input({ price: "100000.01" })).price).toBeDefined();
+    expect(errorsOf(input({ price: "99999999999" })).price).toBeDefined();
+  });
+
+  it("validates a non-empty CLABE even for free events or when SPEI is off", () => {
+    expect(errorsOf(input({ price: "0", speiClabe: "123" })).speiClabe).toBeDefined();
+    expect(errorsOf(input({ allowSpei: false, allowCash: true, speiClabe: "002010077777777772" })).speiClabe).toBeDefined();
+  });
+
+  it("caps bank and beneficiary at 100 characters", () => {
+    expect("data" in parseTicketingConfig(input({ speiBank: "b".repeat(100) }))).toBe(true);
+    expect(errorsOf(input({ speiBank: "b".repeat(101) })).speiBank).toBeDefined();
+    expect(errorsOf(input({ speiBeneficiary: "b".repeat(101) })).speiBeneficiary).toBeDefined();
+  });
+});
