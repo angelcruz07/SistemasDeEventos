@@ -1,14 +1,14 @@
 import { describe, expect, it } from "vitest";
-import { RETENTION_DAYS, eventExpiryCutoff, selectReceiptsToPurge } from "./receipt-purge";
+import { RETENTION_DAYS, eventExpiryCutoff, selectSuperseded, shouldRunPurge } from "./receipt-purge";
 
 const DAY = 24 * 60 * 60 * 1000;
 const now = new Date("2026-10-08T12:00:00Z");
 
-const r = (id: string, ticketId: string, uploadedAt: string, eventDate: string) => ({
+const r = (id: string, ticketId: string, uploadedAt: string, purged = false) => ({
   id,
   ticketId,
   uploadedAt: new Date(uploadedAt),
-  eventDate: new Date(eventDate),
+  purged,
 });
 
 describe("eventExpiryCutoff", () => {
@@ -18,33 +18,43 @@ describe("eventExpiryCutoff", () => {
   });
 });
 
-describe("selectReceiptsToPurge", () => {
-  it("purges receipts of events older than 30 days", () => {
-    const rows = [r("a", "t1", "2026-08-01", "2026-09-01"), r("b", "t2", "2026-09-20", "2026-09-30")];
-    expect(selectReceiptsToPurge(rows, now)).toEqual(["a"]);
-  });
-
-  it("keeps an event exactly at the cutoff", () => {
-    const rows = [r("a", "t1", "2026-09-01", new Date(now.getTime() - 30 * DAY).toISOString())];
-    expect(selectReceiptsToPurge(rows, now)).toEqual([]);
-  });
-
-  it("purges superseded receipts but keeps the latest of each ticket", () => {
-    const future = "2026-12-01";
+describe("selectSuperseded", () => {
+  it("returns older receipts but keeps the latest of each ticket", () => {
     const rows = [
-      r("old", "t1", "2026-10-01T10:00:00Z", future),
-      r("new", "t1", "2026-10-02T10:00:00Z", future),
-      r("other", "t2", "2026-10-01T10:00:00Z", future),
+      r("old", "t1", "2026-10-01T10:00:00Z"),
+      r("new", "t1", "2026-10-02T10:00:00Z"),
+      r("other", "t2", "2026-10-01T10:00:00Z"),
     ];
-    expect(selectReceiptsToPurge(rows, now)).toEqual(["old"]);
+    expect(selectSuperseded(rows)).toEqual(["old"]);
   });
 
-  it("returns each id once", () => {
-    const rows = [r("old", "t1", "2026-01-01", "2026-02-01"), r("new", "t1", "2026-01-02", "2026-02-01")];
-    expect(selectReceiptsToPurge(rows, now).sort()).toEqual(["new", "old"]);
+  it("handles three uploads regardless of input order", () => {
+    const rows = [
+      r("b", "t1", "2026-10-02T00:00:00Z"),
+      r("c", "t1", "2026-10-03T00:00:00Z"),
+      r("a", "t1", "2026-10-01T00:00:00Z"),
+    ];
+    expect(selectSuperseded(rows).sort()).toEqual(["a", "b"]);
+  });
+
+  it("measures the latest including already-purged rows and skips purged ones", () => {
+    const rows = [r("old", "t1", "2026-10-01T00:00:00Z"), r("gone", "t1", "2026-10-02T00:00:00Z", true)];
+    expect(selectSuperseded(rows)).toEqual(["old"]);
+    expect(selectSuperseded([r("x", "t1", "2026-10-01T00:00:00Z", true), r("y", "t1", "2026-10-02T00:00:00Z")])).toEqual([]);
   });
 
   it("returns nothing for no rows", () => {
-    expect(selectReceiptsToPurge([], now)).toEqual([]);
+    expect(selectSuperseded([])).toEqual([]);
+  });
+});
+
+describe("shouldRunPurge", () => {
+  const interval = 10 * 60 * 1000;
+  it("runs the first time", () => {
+    expect(shouldRunPurge(null, now, interval)).toBe(true);
+  });
+  it("skips inside the interval and runs after it", () => {
+    expect(shouldRunPurge(new Date(now.getTime() - interval + 1), now, interval)).toBe(false);
+    expect(shouldRunPurge(new Date(now.getTime() - interval), now, interval)).toBe(true);
   });
 });

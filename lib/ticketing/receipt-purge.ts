@@ -6,25 +6,27 @@ export function eventExpiryCutoff(now: Date): Date {
   return new Date(now.getTime() - RETENTION_DAYS * DAY_MS);
 }
 
-export interface PurgeCandidate {
+export interface ReceiptRef {
   id: string;
   ticketId: string;
   uploadedAt: Date;
-  eventDate: Date;
+  purged: boolean;
 }
 
 /**
- * Ids to purge from not-yet-purged receipts: those of expired events, plus
- * superseded ones (anything that is not the latest upload of its ticket).
+ * Ids of superseded receipts: anything that is not the latest upload of its ticket
+ * (the latest is measured over all rows, purged or not) and is not already purged.
  */
-export function selectReceiptsToPurge(rows: PurgeCandidate[], now: Date): string[] {
-  const cutoff = eventExpiryCutoff(now).getTime();
-  const latest = new Map<string, PurgeCandidate>();
+export function selectSuperseded(rows: ReceiptRef[]): string[] {
+  const latest = new Map<string, ReceiptRef>();
   for (const row of rows) {
     const current = latest.get(row.ticketId);
     if (!current || row.uploadedAt > current.uploadedAt) latest.set(row.ticketId, row);
   }
-  return rows
-    .filter((row) => row.eventDate.getTime() < cutoff || latest.get(row.ticketId) !== row)
-    .map((row) => row.id);
+  return rows.filter((row) => !row.purged && latest.get(row.ticketId) !== row).map((row) => row.id);
+}
+
+/** Throttle for the lazy purge: first run, or at least `intervalMs` since the last. */
+export function shouldRunPurge(lastRun: Date | null, now: Date, intervalMs: number): boolean {
+  return lastRun === null || now.getTime() - lastRun.getTime() >= intervalMs;
 }

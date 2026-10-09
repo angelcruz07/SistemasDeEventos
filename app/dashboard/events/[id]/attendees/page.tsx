@@ -2,7 +2,7 @@ import Link from "next/link";
 import { after } from "next/server";
 import prisma from "@/app/lib/prisma";
 import { formatMx } from "@/lib/datetime";
-import { purgeExpiredReceipts } from "@/lib/server/receipts-purge";
+import { purgeExpiredReceiptsThrottled } from "@/lib/server/receipts-purge";
 import { requireEventOwner } from "@/lib/server/guards";
 import {
   PAGE_SIZE,
@@ -40,7 +40,7 @@ export default async function AttendeesPage({
   const filter = parseAttendeeFilter(await searchParams);
 
   // Lazy retention: runs after the response so the page never waits on it.
-  after(() => purgeExpiredReceipts(new Date()).catch((e) => console.error("Receipt purge failed:", e?.name ?? "unknown")));
+  after(() => purgeExpiredReceiptsThrottled().catch((e) => console.error("Receipt purge failed:", e?.name ?? "unknown")));
 
   const where = buildAttendeeWhere(event.id, filter);
   const [groups, total, tickets] = await Promise.all([
