@@ -4,6 +4,7 @@ import { policyFor } from "./payment";
 
 export interface RegistrationEvent {
   registrationOpen: boolean;
+  isCancelled: boolean;
   capacity: number | null;
   priceCents: number;
   allowSpei: boolean;
@@ -19,6 +20,7 @@ export function registrationAvailability(
   event: RegistrationEvent,
   held: number,
 ): { open: true } | { open: false; reason: RefusalReason } {
+  if (event.isCancelled) return { open: false, reason: "closed" };
   if (event.priceCents > 0 && !event.allowSpei) return { open: false, reason: "closed" };
   return isRegistrationOpen(event, held);
 }
@@ -34,6 +36,8 @@ export function decideRegistration(input: {
   held: number;
   existing: { id: string; status: TicketStatus } | null;
 }): RegistrationDecision {
+  // A cancelled event accepts nothing, not even link recovery.
+  if (input.event.isCancelled) return { kind: "refused", reason: "closed" };
   // An existing ticket always wins, so attendees can recover their link after close/sold out.
   if (input.existing) return { kind: "duplicate", ticketId: input.existing.id, status: input.existing.status };
 

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { decideRegistration, emailKindFor, isUniqueViolation } from "./registration";
 
-const event = { registrationOpen: true, capacity: 10, priceCents: 0, allowSpei: true };
+const event = { registrationOpen: true, isCancelled: false, capacity: 10, priceCents: 0, allowSpei: true };
 
 describe("decideRegistration", () => {
   it("creates a PAID FREE ticket for a free event", () => {
@@ -32,6 +32,15 @@ describe("decideRegistration", () => {
     expect(decideRegistration({ event: { ...event, capacity: 5 }, held: 8, existing: null })).toEqual({
       kind: "refused",
       reason: "full",
+    });
+  });
+
+  it("refuses a cancelled event, even for an existing ticket", () => {
+    const cancelled = { ...event, isCancelled: true };
+    expect(decideRegistration({ event: cancelled, held: 0, existing: null })).toEqual({ kind: "refused", reason: "closed" });
+    expect(decideRegistration({ event: cancelled, held: 0, existing: { id: "t1", status: "PAID" } })).toEqual({
+      kind: "refused",
+      reason: "closed",
     });
   });
 

@@ -242,7 +242,7 @@ export async function getEventBySlug(slug: string) {
     const held = await prisma.ticket.count({
       where: { eventId: event.id, status: { in: [...HOLDING_STATUSES] } },
     });
-    const availability = registrationAvailability(event, held);
+    const availability = registrationAvailability({ ...event, isCancelled: false }, held);
     return {
       success: true,
       data: {
