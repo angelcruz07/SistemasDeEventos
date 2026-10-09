@@ -3,6 +3,8 @@ import { normalizeShortCode } from "./short-code";
 import { TICKET_STATUSES } from "./status";
 
 export const PAGE_SIZE = 25;
+/** Keeps `skip` far below the Int32 limit Prisma/Postgres accept. */
+export const MAX_PAGE = 10000;
 const MAX_QUERY_LENGTH = 100;
 const MIN_CODE_QUERY = 2;
 
@@ -30,7 +32,7 @@ export function parseAttendeeFilter(params: Record<string, RawParam>): AttendeeF
   const status = TICKET_STATUSES.find((s) => s === rawStatus);
   const q = (first(params.q) ?? "").trim().slice(0, MAX_QUERY_LENGTH);
   const rawPage = first(params.page);
-  const page = rawPage && /^\d+$/.test(rawPage) ? Math.max(1, Number(rawPage)) : 1;
+  const page = rawPage && /^\d+$/.test(rawPage) ? Math.min(MAX_PAGE, Math.max(1, Number(rawPage))) : 1;
   return { status, q, page };
 }
 

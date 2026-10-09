@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  MAX_PAGE,
   PAGE_SIZE,
   STATUS_LABELS,
   buildAttendeeWhere,
@@ -28,6 +29,12 @@ describe("parseAttendeeFilter", () => {
     expect(parseAttendeeFilter({ page: "-2" }).page).toBe(1);
     expect(parseAttendeeFilter({ page: "abc" }).page).toBe(1);
     expect(parseAttendeeFilter({ page: "1.5" }).page).toBe(1);
+  });
+
+  it("caps huge pages so skip cannot overflow", () => {
+    expect(parseAttendeeFilter({ page: "10000" }).page).toBe(MAX_PAGE);
+    expect(parseAttendeeFilter({ page: "99999999999999999999" }).page).toBe(MAX_PAGE);
+    expect(MAX_PAGE * PAGE_SIZE).toBeLessThan(2 ** 31);
   });
 });
 
