@@ -43,3 +43,13 @@ Notes for later PRs (not implemented here):
 - PR5/PR6 (receipt serving): use Content-Disposition: attachment, X-Content-Type-Options: nosniff and the server-sniffed MIME, never a stored/declared one.
 - Any short-code lookup endpoint MUST be rate-limited.
 - PR8 (check-in): verify the ticket's eventId matches the door session's event.
+
+## Batch 4: PR3 (branch feat/ticketing-pr3-config-hub) - DONE
+- [x] 3.1 `lib/server/guards.ts` (`getOwnedEvent` cached, null for missing AND foreign; `requireEventOwner` redirects anon, notFound for non-owner); `lib/env.ts` (`readTicketingEnv(source)` pure + lazy `getTicketingEnv()`, so pages not sending email boot without the vars)
+- [x] 3.2 hub layout `app/dashboard/events/[id]/layout.tsx` + `EventHubTabs` (Boletos y pagos, Formulario)
+- [x] 3.3 `parseTicketingConfig` (pure, TDD) + `updateTicketingConfig` action + `TicketingForm`; SPEI fields required only when price > 0 and SPEI enabled
+- [x] 3.4 `FormBuilder` + `updateFormSchema` using `validateSchemaEdit` with `collectAnsweredFieldIds(Ticket.answers)`; `generateFieldId`/`moveItem` pure helpers
+Strict TDD: ticketing-config, form-builder, env tests written first and run RED (module not found).
+Verification: vitest 106/106 (13 files); tsc clean; lint baseline (1 error EventsList, 2 warnings); build OK.
+Notes: name/email are fixed fields outside formSchema (validateAnswers handles them). No migration needed. `.env.template` documents the new vars as commented entries.
+Next: PR4 (not started).

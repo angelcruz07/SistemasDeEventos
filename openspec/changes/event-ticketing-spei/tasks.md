@@ -71,10 +71,10 @@ Files: `lib/ticketing/{token,short-code,status,capacity,form-schema,money,clabe,
 
 ### PR3: Organizer config hub (~400, base PR2)
 Files: `lib/server/guards.ts`, `lib/env.ts`, `app/dashboard/events/[id]/{layout,ticketing/page,form/page}.tsx`, `_actions/ticketing.actions.ts`, `_components/{TicketingForm,FormBuilder}.tsx`, `.env.template` (coordinate with 0.1 note).
-- [ ] 3.1 `requireEventOwner` guard; `lib/env.ts` fail-fast.
-- [ ] 3.2 Hub layout with tabs, owner-guarded once.
-- [ ] 3.3 Ticketing action + page: price (pesos->cents), methods, SPEI fields required when enabled, capacity, displayCapacity, `registrationOpen`; block price>0 with no method.
-- [ ] 3.4 Form builder page + action using `validateSchemaEdit`.
+- [x] 3.1 `requireEventOwner` guard; `lib/env.ts` fail-fast.
+- [x] 3.2 Hub layout with tabs, owner-guarded once.
+- [x] 3.3 Ticketing action + page: price (pesos->cents), methods, SPEI fields required when enabled, capacity, displayCapacity, `registrationOpen`; block price>0 with no method.
+- [x] 3.4 Form builder page + action using `validateSchemaEdit`.
 - Verify: tsc, lint, vitest; manual: invalid CLABE rejected, non-owner gets denied. Rollback: revert.
 
 ### PR4: Public registration + email (~400, base PR3)
