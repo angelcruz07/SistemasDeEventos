@@ -4,17 +4,24 @@ import { getClientIp, rateLimitKey } from "./request-keys";
 const headers = (init: Record<string, string>) => new Headers(init);
 
 describe("getClientIp", () => {
-  it("uses the first hop of x-forwarded-for", () => {
-    expect(getClientIp(headers({ "x-forwarded-for": "203.0.113.7, 10.0.0.1" }))).toBe("203.0.113.7");
+  it("prefers x-real-ip, which the proxy sets itself", () => {
+    expect(getClientIp(headers({ "x-real-ip": "198.51.100.2", "x-forwarded-for": "6.6.6.6, 203.0.113.7" }))).toBe(
+      "198.51.100.2",
+    );
   });
 
-  it("falls back to x-real-ip, then to a constant", () => {
-    expect(getClientIp(headers({ "x-real-ip": "198.51.100.2" }))).toBe("198.51.100.2");
-    expect(getClientIp(headers({}))).toBe("unknown");
+  it("uses the rightmost x-forwarded-for hop (the one appended by our proxy)", () => {
+    expect(getClientIp(headers({ "x-forwarded-for": "6.6.6.6, 203.0.113.7" }))).toBe("203.0.113.7");
+    expect(getClientIp(headers({ "x-forwarded-for": "203.0.113.9" }))).toBe("203.0.113.9");
+  });
+
+  it("returns null when nothing usable is present", () => {
+    expect(getClientIp(headers({}))).toBeNull();
   });
 
   it("ignores values that are not IP-shaped", () => {
-    expect(getClientIp(headers({ "x-forwarded-for": "<script>, 1.2.3.4" }))).toBe("unknown");
+    expect(getClientIp(headers({ "x-forwarded-for": "1.2.3.4, <script>" }))).toBeNull();
+    expect(getClientIp(headers({ "x-real-ip": "nope", "x-forwarded-for": "1.2.3.4" }))).toBe("1.2.3.4");
   });
 });
 
