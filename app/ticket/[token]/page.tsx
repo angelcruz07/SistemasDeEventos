@@ -56,11 +56,25 @@ export default async function TicketPage({ params }: { params: Promise<{ token: 
   const code = formatShortCode(ticket.code);
   const { event } = ticket;
 
+  const isCard = view.kind === "ticket";
+  const design = parseTicketDesign(event.ticketDesign, process.env.CLOUDINARY_CLOUD_NAME);
+
   return (
+    // Theme tokens on the wrapper keep every state readable; the card view adopts the design background.
+    <div
+      className="min-h-screen bg-background text-foreground"
+      style={isCard ? { backgroundColor: design.backgroundColor } : undefined}
+    >
     <main className="mx-auto flex min-h-screen w-full max-w-md flex-col gap-6 px-4 py-8">
       <header className="space-y-3">
-        <h1 className="text-2xl font-bold break-words">{event.title}</h1>
-        <ul className="space-y-1.5 text-sm text-muted-foreground">
+        {/* The designed card already shows the title visibly; keep one h1 for assistive tech. */}
+        <h1 className={isCard ? "sr-only" : "text-2xl font-bold break-words"}>
+          {event.title}
+        </h1>
+        <ul
+          className={`space-y-1.5 text-sm ${isCard ? "" : "text-muted-foreground"}`}
+          style={isCard ? { color: design.textColor } : undefined}
+        >
           <li className="flex items-center gap-2">
             <Calendar className="size-4 shrink-0" /> {formatEventDate(event.date)}
           </li>
@@ -71,11 +85,13 @@ export default async function TicketPage({ params }: { params: Promise<{ token: 
             <MapPin className="mt-0.5 size-4 shrink-0" /> <span className="break-words">{event.location}</span>
           </li>
         </ul>
-        <div className="rounded-md border p-3">
-          <p className="text-sm text-muted-foreground">Asistente</p>
-          <p className="font-medium break-words">{ticket.name}</p>
-          <p className="mt-1 font-mono text-lg tracking-widest">{code}</p>
-        </div>
+        {!isCard && (
+          <div className="rounded-md border p-3">
+            <p className="text-sm text-muted-foreground">Asistente</p>
+            <p className="font-medium break-words">{ticket.name}</p>
+            <p className="mt-1 font-mono text-lg tracking-widest">{code}</p>
+          </div>
+        )}
       </header>
 
       {view.kind === "upload" && (
@@ -101,7 +117,7 @@ export default async function TicketPage({ params }: { params: Promise<{ token: 
       {view.kind === "ticket" && (
         <>
           <TicketCard
-            design={parseTicketDesign(event.ticketDesign, process.env.CLOUDINARY_CLOUD_NAME)}
+            design={design}
             eventTitle={event.title}
             attendeeName={ticket.name}
             code={code}
@@ -117,5 +133,6 @@ export default async function TicketPage({ params }: { params: Promise<{ token: 
         </section>
       )}
     </main>
+    </div>
   );
 }

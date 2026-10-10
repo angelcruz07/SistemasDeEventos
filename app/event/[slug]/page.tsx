@@ -34,7 +34,7 @@ export default async function EventPage({
     (imageUrl.startsWith("http://") || imageUrl.startsWith("https://"));
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background text-foreground">
       <main className="container mx-auto px-4 sm:px-6 py-6 sm:py-8 max-w-4xl">
         <div className="grid gap-6 sm:gap-8 grid-cols-1 md:grid-cols-[1fr,minmax(260px,320px)]">
           <div className="space-y-4 sm:space-y-6 min-w-0">
