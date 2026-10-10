@@ -1,4 +1,4 @@
-import type { TicketStatus } from "@/app/generated/prisma/enums";
+import type { PaymentMethod, TicketStatus } from "@/app/generated/prisma/enums";
 import { normalizeShortCode } from "./short-code";
 import { TICKET_STATUSES } from "./status";
 
@@ -16,6 +16,8 @@ export const STATUS_LABELS: Record<TicketStatus, string> = {
   REJECTED: "Rechazado",
   CANCELLED: "Cancelado",
 };
+
+export const PAYMENT_METHOD_LABELS: Record<PaymentMethod, string> = { SPEI: "SPEI", CASH: "Efectivo", FREE: "Gratis" };
 
 export interface AttendeeFilter {
   status?: TicketStatus;
