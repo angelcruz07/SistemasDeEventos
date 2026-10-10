@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,6 +16,7 @@ export function TicketSearch({
   doorKey: string;
   onResults: (entries: DoorLookupEntry[], message: string | null) => void;
 }) {
+  const router = useRouter();
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -23,7 +25,10 @@ export function TicketSearch({
     setLoading(true);
     const result = await searchTickets(doorKey, query);
     setLoading(false);
-    if (!result.success) return onResults([], result.error);
+    if (!result.success) {
+      if (result.code === "SESSION_EXPIRED") router.refresh();
+      return onResults([], result.error);
+    }
     onResults(result.entries, result.entries.length === 0 ? "Sin resultados" : null);
   };
 

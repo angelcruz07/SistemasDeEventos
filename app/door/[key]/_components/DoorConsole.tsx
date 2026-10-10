@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { lookupTicket, type DoorLookupEntry } from "../_actions/door.actions";
 import { CheckInCard } from "./CheckInCard";
 import { Scanner } from "./Scanner";
@@ -8,6 +9,7 @@ import { TicketSearch } from "./TicketSearch";
 import { WalkInForm } from "./WalkInForm";
 
 export function DoorConsole({ doorKey, allowCash }: { doorKey: string; allowCash: boolean }) {
+  const router = useRouter();
   const [entries, setEntries] = useState<DoorLookupEntry[]>([]);
   const [message, setMessage] = useState<string | null>(null);
   const [selected, setSelected] = useState<DoorLookupEntry | null>(null);
@@ -24,7 +26,10 @@ export function DoorConsole({ doorKey, allowCash }: { doorKey: string; allowCash
   const handleScan = async (value: string) => {
     const result = await lookupTicket(doorKey, value);
     if (result.success) show(result.entries, null);
-    else show([], result.error);
+    else {
+      if (result.code === "SESSION_EXPIRED") router.refresh();
+      show([], result.error);
+    }
   };
 
   return (

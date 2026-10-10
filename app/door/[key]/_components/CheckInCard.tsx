@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { TicketStatus } from "@/app/generated/prisma/enums";
@@ -35,6 +36,7 @@ export function CheckInCard({
   decision: CheckInDecision;
   onDone: () => void;
 }) {
+  const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [outcome, setOutcome] = useState<Outcome | null>(initialOutcome(decision));
   const [done, setDone] = useState(false);
@@ -44,6 +46,7 @@ export function CheckInCard({
     const result = await checkIn(doorKey, ticket.id);
     setLoading(false);
     setDone(true);
+    if (!result.success && result.code === "SESSION_EXPIRED") router.refresh();
     if (result.success) setOutcome({ tone: "ok", title: "ACCESO PERMITIDO" });
     else if (result.decision?.kind === "already") setOutcome({ tone: "warn", title: "YA INGRESÓ", detail: result.error });
     else setOutcome({ tone: "deny", title: "ACCESO DENEGADO", detail: result.error });

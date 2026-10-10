@@ -48,7 +48,13 @@ export default async function DoorPage({ params }: { params: Promise<{ key: stri
           {formatEventDate(session.event.date)} · {session.event.time} · {session.event.location}
         </p>
       </header>
-      <DoorConsole doorKey={key} allowCash={cash?.allowCash ?? false} />
+      {session.eventCancelled ? (
+        <p role="alert" className="rounded-lg border-2 border-red-600 bg-red-50 p-4 text-center font-semibold text-red-900">
+          Evento cancelado
+        </p>
+      ) : (
+        <DoorConsole doorKey={key} allowCash={cash?.allowCash ?? false} />
+      )}
       <form action={logout}>
         <Button type="submit" variant="outline" className="w-full">
           Salir

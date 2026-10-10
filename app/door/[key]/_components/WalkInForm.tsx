@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,6 +10,7 @@ import { formatShortCode } from "@/lib/ticketing/short-code";
 import { createWalkIn } from "../_actions/door.actions";
 
 export function WalkInForm({ doorKey }: { doorKey: string }) {
+  const router = useRouter();
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -38,6 +40,7 @@ export function WalkInForm({ doorKey }: { doorKey: string }) {
       setCreated({ name: result.ticket.name, code: result.ticket.code });
       return;
     }
+    if (result.code === "SESSION_EXPIRED") router.refresh();
     setError(result.error);
     setFieldErrors(result.fieldErrors ?? {});
   };
