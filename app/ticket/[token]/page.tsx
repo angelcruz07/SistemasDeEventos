@@ -9,6 +9,8 @@ import { ticketViewFor } from "@/lib/ticketing/ticket-view";
 import { verifyTicketToken } from "@/lib/ticketing/token";
 import { ReceiptUpload } from "./_components/ReceiptUpload";
 import { SpeiInstructions } from "./_components/SpeiInstructions";
+import { parseTicketDesign } from "@/lib/ticketing/ticket-design";
+import { TicketActions } from "./_components/TicketActions";
 import { TicketCard } from "./_components/TicketCard";
 
 // The token is in the URL: keep it out of Referer headers and search indexes.
@@ -35,6 +37,8 @@ export default async function TicketPage({ params }: { params: Promise<{ token: 
       event: {
         select: {
           title: true,
+          slug: true,
+          ticketDesign: true,
           isCancelled: true,
           date: true,
           time: true,
@@ -94,7 +98,19 @@ export default async function TicketPage({ params }: { params: Promise<{ token: 
           </p>
         </section>
       )}
-      {view.kind === "ticket" && <TicketCard token={token} checkedIn={view.checkedIn} />}
+      {view.kind === "ticket" && (
+        <>
+          <TicketCard
+            design={parseTicketDesign(event.ticketDesign)}
+            eventTitle={event.title}
+            attendeeName={ticket.name}
+            code={code}
+            checkedIn={view.checkedIn}
+            qrSrc={`/api/tickets/${encodeURIComponent(token)}/qr.png`}
+          />
+          <TicketActions token={token} eventTitle={event.title} slug={event.slug} />
+        </>
+      )}
       {view.kind === "cancelled" && (
         <section className="rounded-md border border-destructive/40 p-4 text-center">
           <p className="font-medium">Este boleto fue cancelado</p>

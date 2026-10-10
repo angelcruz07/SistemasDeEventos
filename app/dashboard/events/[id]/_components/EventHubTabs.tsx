@@ -4,12 +4,12 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 
-// The design tab is added by a later change.
 const TABS = [
   { segment: "ticketing", label: "Boletos y pagos" },
   { segment: "attendees", label: "Asistentes" },
   { segment: "form", label: "Formulario" },
   { segment: "door", label: "Puerta" },
+  { segment: "design", label: "Diseño" },
 ];
 
 export function EventHubTabs({ eventId }: { eventId: string }) {

@@ -4,11 +4,12 @@ import { useState } from "react";
 import { Check, Share2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
-export function ShareEventButton({ title }: { title: string }) {
+export function ShareEventButton({ title, path }: { title: string; path?: string }) {
   const [copied, setCopied] = useState(false);
 
   const handleShare = async () => {
-    const url = window.location.href;
+    // An explicit path lets other pages share the public event URL instead of their own (possibly secret) URL.
+    const url = path ? new URL(path, window.location.origin).toString() : window.location.href;
     if (typeof navigator.share === "function") {
       try {
         await navigator.share({ title, url });
