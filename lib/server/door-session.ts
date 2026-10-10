@@ -25,6 +25,8 @@ export interface DoorSession {
   /** Staff-safe fields only: no prices, SPEI data, capacity or settings. */
   event: DoorEventView;
   staffName: string;
+  /** Door actions refuse to operate on a cancelled event. */
+  eventCancelled: boolean;
 }
 
 /**
@@ -44,7 +46,7 @@ export async function getDoorSession(key: string): Promise<DoorSession | null> {
 
   const event = await prisma.event.findUnique({
     where: { id: access.eventId },
-    select: { id: true, title: true, date: true, time: true, location: true },
+    select: { id: true, title: true, date: true, time: true, location: true, isCancelled: true },
   });
   if (!event) return null;
 
@@ -52,5 +54,6 @@ export async function getDoorSession(key: string): Promise<DoorSession | null> {
     access: { id: access.id, eventId: access.eventId },
     event: toDoorEventView(event),
     staffName: payload.name,
+    eventCancelled: event.isCancelled,
   };
 }

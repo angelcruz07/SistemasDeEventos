@@ -16,7 +16,7 @@ import {
 } from "@/lib/server/door-session";
 import { hitRateLimit } from "@/lib/server/rate-limit";
 import { getClientIp, rateLimitKey } from "@/lib/server/request-keys";
-import { checkInDecision, parseScanInput, parseSearchQuery, parseWalkIn, type CheckInDecision } from "@/lib/ticketing/checkin";
+import { checkInDecision, escapeLike, parseScanInput, parseSearchQuery, parseWalkIn, type CheckInDecision, type DoorErrorCode } from "@/lib/ticketing/checkin";
 import { toDoorTicketView, type DoorTicketView } from "@/lib/ticketing/door-view";
 import { isUniqueViolation } from "@/lib/ticketing/registration";
 import { createWithUniqueCode, generateShortCode } from "@/lib/ticketing/short-code";
@@ -134,19 +134,22 @@ export interface DoorLookupEntry {
   decision: CheckInDecision;
 }
 
-export type LookupResult = { success: true; entries: DoorLookupEntry[] } | { success: false; error: string };
+export type LookupResult = { success: true; entries: DoorLookupEntry[] } | { success: false; error: string; code?: DoorErrorCode };
 export type CheckInResult =
   | { success: true; ticket: DoorTicketView }
-  | { success: false; error: string; ticket?: DoorTicketView; decision?: CheckInDecision };
+  | { success: false; error: string; code?: DoorErrorCode; ticket?: DoorTicketView; decision?: CheckInDecision };
 export type WalkInResult =
   | { success: true; ticket: DoorTicketView }
-  | { success: false; error: string; fieldErrors?: Record<string, string>; duplicateEmail?: boolean };
+  | { success: false; error: string; code?: DoorErrorCode; fieldErrors?: Record<string, string>; duplicateEmail?: boolean };
 
-type SessionOutcome = { session: DoorSession; error?: undefined } | { session?: undefined; error: string };
+type SessionOutcome =
+  | { session: DoorSession; error?: undefined; code?: undefined }
+  | { session?: undefined; error: string; code?: DoorErrorCode };
 
 async function requireDoorSession(key: string, rateScope?: string): Promise<SessionOutcome> {
   const session = await getDoorSession(key);
-  if (!session) return { error: EXPIRED };
+  if (!session) return { error: EXPIRED, code: "SESSION_EXPIRED" };
+  if (session.eventCancelled) return { error: "Evento cancelado", code: "EVENT_CANCELLED" };
   if (rateScope) {
     const ip = getClientIp(await headers());
     if (ip && !(await hitRateLimit(rateLimitKey(`${rateScope}-ip`, ip), 600, TEN_MINUTES)).allowed) {
@@ -167,7 +170,7 @@ function toEntry(ticket: Prisma.TicketGetPayload<{ select: typeof TICKET_SELECT 
 export async function lookupTicket(key: string, input: string): Promise<LookupResult> {
   try {
     const outcome = await requireDoorSession(key, "door-lookup");
-    if (outcome.error !== undefined) return { success: false, error: outcome.error };
+    if (outcome.error !== undefined) return { success: false, error: outcome.error, code: outcome.code };
     const { session } = outcome;
 
     const parsed = parseScanInput(typeof input === "string" ? input : "", getTicketingEnv().signingSecret);
@@ -191,7 +194,7 @@ export async function lookupTicket(key: string, input: string): Promise<LookupRe
 export async function searchTickets(key: string, query: string): Promise<LookupResult> {
   try {
     const outcome = await requireDoorSession(key, "door-lookup");
-    if (outcome.error !== undefined) return { success: false, error: outcome.error };
+    if (outcome.error !== undefined) return { success: false, error: outcome.error, code: outcome.code };
     const { session } = outcome;
 
     const q = parseSearchQuery(typeof query === "string" ? query : "");
@@ -200,7 +203,10 @@ export async function searchTickets(key: string, query: string): Promise<LookupR
     const tickets = await prisma.ticket.findMany({
       where: {
         eventId: session.access.eventId,
-        OR: [{ name: { contains: q.text, mode: "insensitive" } }, { code: { startsWith: q.code } }],
+        OR: [
+          { name: { contains: escapeLike(q.text), mode: "insensitive" } },
+          ...(q.code ? [{ code: { startsWith: q.code } }] : []),
+        ],
       },
       select: TICKET_SELECT,
       orderBy: { name: "asc" },
@@ -217,14 +223,14 @@ export async function searchTickets(key: string, query: string): Promise<LookupR
 export async function checkIn(key: string, ticketId: string): Promise<CheckInResult> {
   try {
     const outcome = await requireDoorSession(key);
-    if (outcome.error !== undefined) return { success: false, error: outcome.error };
+    if (outcome.error !== undefined) return { success: false, error: outcome.error, code: outcome.code };
     const { session } = outcome;
     if (typeof ticketId !== "string" || ticketId.length === 0 || ticketId.length > 100) {
       return { success: false, error: NOT_FOUND };
     }
 
     const { count } = await prisma.ticket.updateMany({
-      where: { id: ticketId, eventId: session.access.eventId, status: "PAID" },
+      where: { id: ticketId, eventId: session.access.eventId, status: "PAID", event: { isCancelled: false } },
       data: { status: "CHECKED_IN", checkedInAt: new Date(), checkedInBy: session.staffName },
     });
 
@@ -235,7 +241,7 @@ export async function checkIn(key: string, ticketId: string): Promise<CheckInRes
     if (!ticket) return { success: false, error: NOT_FOUND };
     if (count === 1) return { success: true, ticket: toDoorTicketView(ticket) };
 
-    const decision = checkInDecision(ticket, session.access.eventId);
+    const decision = checkInDecision(ticket, session.access.eventId, { eventCancelled: session.eventCancelled });
     return {
       success: false,
       error: decision.kind === "allow" ? "No se pudo registrar el acceso. Inténtalo de nuevo." : decision.message,
@@ -254,7 +260,7 @@ class EmailTaken extends Error {}
 export async function createWalkIn(key: string, input: unknown): Promise<WalkInResult> {
   try {
     const outcome = await requireDoorSession(key, "door-walkin");
-    if (outcome.error !== undefined) return { success: false, error: outcome.error };
+    if (outcome.error !== undefined) return { success: false, error: outcome.error, code: outcome.code };
     const { session } = outcome;
 
     const parsed = parseWalkIn(input);
