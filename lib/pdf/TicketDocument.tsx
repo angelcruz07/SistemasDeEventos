@@ -1,3 +1,4 @@
+/* eslint-disable jsx-a11y/alt-text -- react-pdf Image is a PDF primitive, not an HTML img */
 import { Document, Image, Page, StyleSheet, Text, View } from "@react-pdf/renderer";
 import type { TicketDesign } from "@/lib/ticketing/ticket-design";
 
