@@ -78,3 +78,20 @@ describe("contrast", () => {
     expect(hasLowContrast("#000000", "#FFFFFF")).toBe(false);
   });
 });
+
+describe("cloud name scoping", () => {
+  const url = "https://res.cloudinary.com/mycloud/image/upload/logo.png";
+  it("accepts matching cloud name", () => {
+    expect(parseTicketDesign({ logoUrl: url }, "mycloud").logoUrl).toBe(url);
+  });
+  it("rejects other cloud names, including prefix lookalikes", () => {
+    expect(parseTicketDesign({ logoUrl: url }, "other").logoUrl).toBeNull();
+    expect(parseTicketDesign({ logoUrl: url }, "my").logoUrl).toBeNull();
+    expect(parseTicketDesign({ headerImageUrl: url }, "other").headerImageUrl).toBeNull();
+  });
+  it("keeps current behavior when not configured", () => {
+    expect(parseTicketDesign({ logoUrl: url }).logoUrl).toBe(url);
+    expect(parseTicketDesign({ logoUrl: url }, null).logoUrl).toBe(url);
+    expect(parseTicketDesign({ logoUrl: url }, "").logoUrl).toBe(url);
+  });
+});

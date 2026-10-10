@@ -31,12 +31,14 @@ function color(value: unknown, fallback: string): string {
 }
 
 /** Only https URLs served from the Cloudinary CDN, without credentials or custom ports. */
-export function sanitizeImageUrl(value: unknown): string | null {
+export function sanitizeImageUrl(value: unknown, cloudName?: string | null): string | null {
   if (typeof value !== "string" || value.length > 500) return null;
   try {
     const url = new URL(value);
     if (url.protocol !== "https:" || url.hostname !== IMAGE_HOST) return null;
     if (url.username || url.password || url.port) return null;
+    // When the cloud is known, only that account's assets are allowed.
+    if (cloudName && !url.pathname.startsWith(`/${cloudName}/`)) return null;
     return url.toString();
   } catch {
     return null;
@@ -44,7 +46,7 @@ export function sanitizeImageUrl(value: unknown): string | null {
 }
 
 /** Stored JSON is never trusted: always normalize on read and before saving. */
-export function parseTicketDesign(raw: unknown): TicketDesign {
+export function parseTicketDesign(raw: unknown, cloudName?: string | null): TicketDesign {
   if (typeof raw !== "object" || raw === null || Array.isArray(raw)) return { ...DEFAULT_TICKET_DESIGN };
   const r = raw as Record<string, unknown>;
   const footer = typeof r.footerText === "string" ? r.footerText.trim() : "";
@@ -53,8 +55,8 @@ export function parseTicketDesign(raw: unknown): TicketDesign {
     backgroundColor: color(r.backgroundColor, DEFAULT_TICKET_DESIGN.backgroundColor),
     textColor: color(r.textColor, DEFAULT_TICKET_DESIGN.textColor),
     accentColor: color(r.accentColor, DEFAULT_TICKET_DESIGN.accentColor),
-    logoUrl: sanitizeImageUrl(r.logoUrl),
-    headerImageUrl: sanitizeImageUrl(r.headerImageUrl),
+    logoUrl: sanitizeImageUrl(r.logoUrl, cloudName),
+    headerImageUrl: sanitizeImageUrl(r.headerImageUrl, cloudName),
     footerText: footer.length <= FOOTER_MAX ? footer : "",
   };
 }

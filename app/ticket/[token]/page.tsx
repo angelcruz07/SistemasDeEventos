@@ -101,7 +101,7 @@ export default async function TicketPage({ params }: { params: Promise<{ token: 
       {view.kind === "ticket" && (
         <>
           <TicketCard
-            design={parseTicketDesign(event.ticketDesign)}
+            design={parseTicketDesign(event.ticketDesign, process.env.CLOUDINARY_CLOUD_NAME)}
             eventTitle={event.title}
             attendeeName={ticket.name}
             code={code}

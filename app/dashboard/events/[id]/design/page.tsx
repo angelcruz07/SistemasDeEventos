@@ -9,7 +9,7 @@ export default async function DesignPage({ params }: { params: Promise<{ id: str
     <DesignEditor
       eventId={event.id}
       eventTitle={event.title}
-      initial={parseTicketDesign(event.ticketDesign)}
+      initial={parseTicketDesign(event.ticketDesign, process.env.CLOUDINARY_CLOUD_NAME)}
     />
   );
 }

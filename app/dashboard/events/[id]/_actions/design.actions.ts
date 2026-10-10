@@ -14,7 +14,7 @@ export async function updateTicketDesign(eventId: string, input: unknown): Promi
     if (!owned) return { success: false, error: "Evento no encontrado." };
 
     // Normalize server-side: the client value is never stored as-is.
-    const design = parseTicketDesign(input);
+    const design = parseTicketDesign(input, process.env.CLOUDINARY_CLOUD_NAME);
     await prisma.event.update({
       where: { id: owned.event.id },
       data: { ticketDesign: design as unknown as Prisma.InputJsonValue },
