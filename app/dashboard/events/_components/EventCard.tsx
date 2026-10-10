@@ -25,7 +25,7 @@ function getEventDateTime(event: Event): Date | null {
   const parts = timeStr.split(":").map(Number);
   if (parts.length < 2 || parts.some(Number.isNaN)) return d;
   const [hours, minutes] = parts;
-  const combined = new Date(d.getFullYear(), d.getMonth(), d.getDate(), hours, minutes ?? 0, 0, 0);
+  const combined = new Date(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate(), hours, minutes ?? 0, 0, 0);
   return Number.isNaN(combined.getTime()) ? d : combined;
 }
 
@@ -60,6 +60,8 @@ function formatDate(date: Date): string {
     day: "numeric",
     month: "long",
     year: "numeric",
+    // Event.date is a calendar day stored as UTC midnight.
+    timeZone: "UTC",
   });
 }
 

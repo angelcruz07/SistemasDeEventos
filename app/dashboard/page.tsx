@@ -23,6 +23,8 @@ function formatDate(date: Date): string {
     day: "numeric",
     month: "short",
     year: "numeric",
+    // Event.date is a calendar day stored as UTC midnight.
+    timeZone: "UTC",
   });
 }
 
