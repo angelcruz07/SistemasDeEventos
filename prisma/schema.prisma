@@ -103,6 +103,7 @@ model Event {
   displayCapacity  Int? // marketing number, optional
   registrationOpen Boolean @default(true)
   formSchema       Json    @default("{\"version\":1,\"fields\":[]}")
+  ticketDesign     Json    @default("{}")
 
   user       User        @relation(fields: [userId], references: [id], onDelete: Cascade)
   tickets    Ticket[]
