@@ -30,10 +30,13 @@ export function parseScanInput(raw: string, secret: string): ScanInput {
 }
 
 /** Search text for name/code lookups; null when too short to search. */
-export function parseSearchQuery(raw: string): { text: string; code: string } | null {
+export function parseSearchQuery(raw: string): { text: string; code: string | null } | null {
   const text = (typeof raw === "string" ? raw.trim() : "").slice(0, MAX_QUERY_LENGTH);
   if (text.length < MIN_QUERY_LENGTH) return null;
-  return { text, code: normalizeShortCode(text) };
+  const code = normalizeShortCode(text);
+  // Only a plausible code prefix may drive the code clause of a search.
+  const plausible = code.length <= CODE_LENGTH && [...code].every((c) => CODE_ALPHABET.includes(c));
+  return { text, code: plausible ? code : null };
 }
 
 export type CheckInDecision =
@@ -41,11 +44,20 @@ export type CheckInDecision =
   | { kind: "already"; message: string }
   | { kind: "denied"; message: string };
 
+/** Escapes LIKE wildcards (Prisma does not) so user text only matches literally. */
+export function escapeLike(text: string): string {
+  return text.replace(/[\\%_]/g, "\\$&");
+}
+
+export type DoorErrorCode = "SESSION_EXPIRED" | "EVENT_CANCELLED";
+
 export function checkInDecision(
   ticket: { eventId: string; status: string; checkedInAt: Date | null; checkedInBy: string | null },
   sessionEventId: string,
+  options: { eventCancelled?: boolean } = {},
 ): CheckInDecision {
   if (ticket.eventId !== sessionEventId) return { kind: "denied", message: "Boleto de otro evento" };
+  if (options.eventCancelled) return { kind: "denied", message: "Evento cancelado" };
   switch (ticket.status) {
     case "PAID":
       return { kind: "allow" };

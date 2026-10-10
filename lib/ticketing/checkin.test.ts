@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { checkInDecision, isRepeatScan, parseScanInput, parseWalkIn, parseSearchQuery } from "./checkin";
+import { checkInDecision, escapeLike, isRepeatScan, parseScanInput, parseWalkIn, parseSearchQuery } from "./checkin";
 import { signTicketToken } from "./token";
 
 const SECRET = "x".repeat(40);
@@ -118,5 +118,33 @@ describe("isRepeatScan", () => {
     expect(isRepeatScan(last, "abc", 4000, 3000)).toBe(false);
     expect(isRepeatScan(last, "other", 1500, 3000)).toBe(false);
     expect(isRepeatScan(null, "abc", 1500, 3000)).toBe(false);
+  });
+});
+
+describe("search code clause", () => {
+  it("is null when the query cannot be a code prefix", () => {
+    expect(parseSearchQuery("Ana Perez")?.code).toBeNull();
+    expect(parseSearchQuery("7K3Q9MX")?.code).toBeNull();
+    expect(parseSearchQuery("u!")?.code).toBeNull();
+    expect(parseSearchQuery("100%")?.code).toBeNull();
+  });
+
+  it("is kept for plausible prefixes", () => {
+    expect(parseSearchQuery("7k3")?.code).toBe("7K3");
+    expect(parseSearchQuery("Ana")?.code).toBe("ANA");
+  });
+});
+
+describe("escapeLike", () => {
+  it("escapes LIKE wildcards and the escape character", () => {
+    expect(escapeLike("50%_off\\")).toBe("50\\%\\_off\\\\");
+    expect(escapeLike("plain")).toBe("plain");
+  });
+});
+
+describe("checkInDecision with a cancelled event", () => {
+  it("denies even a paid ticket", () => {
+    const t = { eventId: "e1", status: "PAID", checkedInAt: null, checkedInBy: null };
+    expect(checkInDecision(t, "e1", { eventCancelled: true })).toEqual({ kind: "denied", message: "Evento cancelado" });
   });
 });
