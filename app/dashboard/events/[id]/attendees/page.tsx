@@ -11,8 +11,10 @@ import {
   countByStatus,
   parseAttendeeFilter,
 } from "@/lib/ticketing/attendees";
+import { computeCashUp } from "@/lib/ticketing/cash-up";
 import { formatShortCode } from "@/lib/ticketing/short-code";
 import { TICKET_STATUSES } from "@/lib/ticketing/status";
+import { CashUpSummary } from "../_components/CashUpSummary";
 import { AttendeesList, type AttendeeRow } from "../_components/AttendeesList";
 
 function describeAnswer(value: unknown): string {
@@ -43,9 +45,13 @@ export default async function AttendeesPage({
   after(() => purgeExpiredReceiptsThrottled().catch((e) => console.error("Receipt purge failed:", e?.name ?? "unknown")));
 
   const where = buildAttendeeWhere(event.id, filter);
-  const [groups, total, tickets] = await Promise.all([
+  const [groups, total, paidTickets, tickets] = await Promise.all([
     prisma.ticket.groupBy({ by: ["status"], where: { eventId: event.id }, _count: { _all: true } }),
     prisma.ticket.count({ where }),
+    prisma.ticket.findMany({
+      where: { eventId: event.id, status: { in: ["PAID", "CHECKED_IN"] } },
+      select: { paymentMethod: true, status: true, amountCents: true },
+    }),
     prisma.ticket.findMany({
       where,
       orderBy: { createdAt: "desc" },
@@ -87,6 +93,12 @@ export default async function AttendeesPage({
       : null,
   }));
 
+  const cashUp = computeCashUp(paidTickets);
+  const exportQs = new URLSearchParams();
+  if (filter.status) exportQs.set("status", filter.status);
+  if (filter.q) exportQs.set("q", filter.q);
+  const exportHref = `/dashboard/events/${event.id}/attendees/export${exportQs.size ? `?${exportQs}` : ""}`;
+
   const pages = Math.max(1, Math.ceil(total / PAGE_SIZE));
   const pageHref = (page: number) => {
     const qs = new URLSearchParams();
@@ -99,6 +111,7 @@ export default async function AttendeesPage({
 
   return (
     <div className="space-y-4">
+      <CashUpSummary summary={cashUp} exportHref={exportHref} />
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
         {TICKET_STATUSES.map((s) => (
           <Link

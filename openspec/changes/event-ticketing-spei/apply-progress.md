@@ -116,3 +116,11 @@ Strict TDD: checkin.test.ts RED (module not found; isRepeatScan not a function) 
 Verification: vitest 242/242 (29 files); tsc clean; lint baseline; build OK.
 Not verified: actions/UI not run against DB or browser.
 Next: PR9 (not started).
+
+## Batch 10: PR9 (branch feat/ticketing-pr9-reporting) - DONE
+- [x] 9.1 `lib/ticketing/csv.ts` (RFC 4180 quoting, UTF-8 BOM, CRLF, formula guard with leading apostrophe, fixed column order + one column per current form field + final "Otras respuestas" for answers of removed fields; Monto as plain pesos "100.00"; times in America/Mexico_City) and `lib/ticketing/cash-up.ts` (PAID + CHECKED_IN only, FREE counts but adds 0, per-method {count,totalCents}, total, checkedIn/paidNotIn). `PAYMENT_METHOD_LABELS` moved into `attendees.ts` (shared with AttendeesList).
+- [x] 9.2 `GET /dashboard/events/[id]/attendees/export` (getOwnedEvent else 404, same filters via parseAttendeeFilter, cap 10,000 rows, attachment, private no-store, nosniff, no receipt data) and `CashUpSummary` on the attendees tab with "Exportar CSV" link carrying status/q filters.
+Strict TDD: csv and cash-up tests RED (module not found) then GREEN (11 tests).
+Verification: vitest 257/257 (31 files); tsc clean; lint baseline (1 error EventsList, 2 warnings); build OK.
+Not verified: export route and summary not run against DB/browser.
+Next: PR10 (not started).

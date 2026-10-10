@@ -3,7 +3,7 @@
 import { useState } from "react";
 import type { PaymentMethod, TicketStatus } from "@/app/generated/prisma/enums";
 import { Button } from "@/components/ui/button";
-import { STATUS_LABELS } from "@/lib/ticketing/attendees";
+import { PAYMENT_METHOD_LABELS, STATUS_LABELS } from "@/lib/ticketing/attendees";
 import { canApprove, canCancel, resendKindFor } from "@/lib/ticketing/review";
 import { cancelTicket, resendTicketEmail } from "../_actions/review.actions";
 import { ReceiptDialog } from "./ReceiptDialog";
@@ -21,7 +21,6 @@ export interface AttendeeRow {
   receipt: { id: string; mimeType: string; purged: boolean } | null;
 }
 
-const METHOD_LABELS: Record<PaymentMethod, string> = { SPEI: "SPEI", CASH: "Efectivo", FREE: "Gratis" };
 
 const BADGE: Record<TicketStatus, string> = {
   PENDING_RECEIPT: "bg-muted text-muted-foreground",
@@ -63,7 +62,7 @@ export function AttendeesList({ eventId, rows }: { eventId: string; rows: Attend
               <p className="truncate font-medium">{row.name}</p>
               <p className="truncate text-sm text-muted-foreground">{row.email ?? "Sin correo"}</p>
               <p className="text-xs text-muted-foreground">
-                <span className="font-mono">{row.code}</span> · {METHOD_LABELS[row.paymentMethod]} · {row.createdAt}
+                <span className="font-mono">{row.code}</span> · {PAYMENT_METHOD_LABELS[row.paymentMethod]} · {row.createdAt}
               </p>
             </div>
             <div className="flex flex-wrap items-center gap-2">

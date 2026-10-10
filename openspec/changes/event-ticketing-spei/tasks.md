@@ -117,7 +117,7 @@ Files: `app/door/[key]/_actions/door.actions.ts`, `_components/{Scanner,TicketSe
 
 ### PR9: Reporting (~250, base PR8)
 Files: `lib/ticketing/{csv,cash-up}.ts` + tests, `[id]/attendees/export/route.ts`, `CashUpSummary.tsx`.
-- [ ] 9.1 RED/GREEN csv (formula guard, BOM), cash-up (2 SPEI + 1 cash at 10000 = 200.00/100.00). 9.2 Owner-only route and summary.
+- [x] 9.1 RED/GREEN csv (formula guard, BOM), cash-up (2 SPEI + 1 cash at 10000 = 200.00/100.00). [x] 9.2 Owner-only route and summary.
 - Rollback: revert.
 
 ### PR10: Design editor + PDF (~400, base PR9) DROPPABLE
