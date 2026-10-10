@@ -7,6 +7,8 @@ import { revalidatePath } from "next/cache";
 import { HOLDING_STATUSES } from "@/lib/ticketing/capacity";
 import { parseFormSchema } from "@/lib/ticketing/form-schema";
 import { registrationAvailability } from "@/lib/ticketing/registration";
+import { normalizeEventImages } from "@/lib/ticketing/event-images";
+import { IMAGES_INCLUDE } from "../interfaces/event.interface";
 
 function generateSlug(title: string): string {
   const base = title
@@ -34,7 +36,8 @@ export interface CreateEventInput {
   date: string;
   time: string;
   location: string;
-  imageUrl: string;
+  /** Ordered gallery URLs; the first one is the cover. Validated server-side. */
+  images: string[];
 }
 
 export interface UpdateEventInput extends CreateEventInput {
@@ -64,6 +67,8 @@ export async function createEvent(data: CreateEventInput) {
 
     const slug = generateSlug(data.title);
 
+    const images = normalizeEventImages(data.images, process.env.CLOUDINARY_CLOUD_NAME);
+
     const event = await prisma.event.create({
       data: {
         userId: user.id,
@@ -72,9 +77,9 @@ export async function createEvent(data: CreateEventInput) {
         date: new Date(data.date),
         time: data.time,
         location: data.location,
-        imageUrl: data.imageUrl || "",
         slug,
         createdBy: user.name,
+        images: { create: images.map((url, position) => ({ url, position })) },
       },
     });
 
@@ -104,6 +109,7 @@ export async function getEvents() {
     const events = await prisma.event.findMany({
       where: { userId: user.id },
       orderBy: { date: "asc" },
+      include: IMAGES_INCLUDE,
     });
     return { success: true, data: events };
   } catch (error) {
@@ -133,6 +139,10 @@ export async function updateEvent(data: UpdateEventInput) {
 
     // Explicit whitelist: server actions are public endpoints, so never spread
     // client input (it could carry slug, userId, etc.).
+    const images = normalizeEventImages(data.images, process.env.CLOUDINARY_CLOUD_NAME);
+
+    // Nested deleteMany + create run in a single transaction (replace-all gallery).
+    // Ownership was already checked above.
     const event = await prisma.event.update({
       where: { id },
       data: {
@@ -141,7 +151,10 @@ export async function updateEvent(data: UpdateEventInput) {
         date: new Date(data.date),
         time: data.time,
         location: data.location,
-        imageUrl: data.imageUrl || "",
+        images: {
+          deleteMany: {},
+          create: images.map((url, position) => ({ url, position })),
+        },
         ...(typeof isCancelled === "boolean" && { isCancelled }),
       },
     });
@@ -195,6 +208,7 @@ export async function getEventById(id: string) {
     const user = await getAuthenticatedUser();
     const event = await prisma.event.findUnique({
       where: { id },
+      include: IMAGES_INCLUDE,
     });
     if (!event) {
       return { success: false, error: "Evento no encontrado." };
@@ -227,7 +241,7 @@ export async function getEventBySlug(slug: string) {
         date: true,
         time: true,
         location: true,
-        imageUrl: true,
+        images: { select: { url: true }, orderBy: { position: "asc" } },
         priceCents: true,
         displayCapacity: true,
         formSchema: true,
@@ -253,7 +267,7 @@ export async function getEventBySlug(slug: string) {
         date: event.date,
         time: event.time,
         location: event.location,
-        imageUrl: event.imageUrl,
+        images: event.images.map((i) => i.url),
         priceCents: event.priceCents,
         displayCapacity: event.displayCapacity,
         formSchema: parseFormSchema(event.formSchema) ?? { version: 1 as const, fields: [] },

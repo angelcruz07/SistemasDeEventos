@@ -1,11 +1,11 @@
 import { notFound } from "next/navigation";
-import Image from "next/image";
 import { Calendar, Clock, MapPin, Users } from "lucide-react";
 import { getEventBySlug } from "@/app/dashboard/events/_actions/event.actions";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatEventDate } from "@/lib/datetime";
 import { formatMxn } from "@/lib/ticketing/money";
 import { RegistrationForm } from "./_components/RegistrationForm";
+import { ImageCarousel } from "./_components/ImageCarousel";
 import { ShareEventButton } from "./_components/ShareEventButton";
 
 const CLOSED_MESSAGES = {
@@ -28,29 +28,12 @@ export default async function EventPage({
   const event = result.data;
   const priceLabel = event.priceCents > 0 ? formatMxn(event.priceCents) : "Gratis";
 
-  const imageUrl = event.imageUrl?.trim();
-  const hasValidImage =
-    imageUrl &&
-    (imageUrl.startsWith("http://") || imageUrl.startsWith("https://"));
-
   return (
     <div className="min-h-screen bg-background text-foreground">
       <main className="container mx-auto px-4 sm:px-6 py-6 sm:py-8 max-w-4xl">
         <div className="grid gap-6 sm:gap-8 grid-cols-1 md:grid-cols-[1fr,minmax(260px,320px)]">
           <div className="space-y-4 sm:space-y-6 min-w-0">
-            <div className="aspect-video rounded-lg overflow-hidden bg-muted flex items-center justify-center">
-              {hasValidImage ? (
-                <Image
-                  src={imageUrl}
-                  alt={event.title}
-                  width={800}
-                  height={450}
-                  className="object-cover w-full h-full"
-                />
-              ) : (
-                <Calendar className="size-16 sm:size-20 text-muted-foreground/50" />
-              )}
-            </div>
+            <ImageCarousel images={event.images} alt={event.title} />
 
             <Card>
               <CardHeader className="px-4 sm:px-6">

@@ -127,7 +127,7 @@ Files: `lib/ticketing/ticket-design.ts` + test, `lib/pdf/TicketDocument.tsx`, `[
 
 ### PR11: Image carousel (~350, base PR9 or PR10) DROPPABLE
 Files: migration `event_images` (hand-edited backfill before dropping `imageUrl`), `EventForm.tsx`, `EventCard.tsx`, `interfaces/event.interface.ts`, event actions, `ImageCarousel.tsx`.
-- [ ] 11.1 Generate `--create-only`, add INSERT backfill then DROP COLUMN. 11.2 Multi-upload form, carousel, placeholder, single image without controls.
+- [x] 11.1 Generate `--create-only`, add INSERT backfill then DROP COLUMN. [x] 11.2 Multi-upload form, carousel, placeholder, single image without controls.
 - Rollback: additive-safe only before drop; after launch, revert code and keep column nullable.
 
 ## Risks and spec/design conflicts (not silently resolved)

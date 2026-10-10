@@ -7,7 +7,7 @@ import { EditEventModal } from "./EditEventModal";
 import { DeleteEventDialog } from "./DeleteEventDialog";
 import { QrCodeModal } from "./QrCodeModal";
 import { getEvents, deleteEvent } from "../_actions/event.actions";
-import type { Event } from "@/app/generated/prisma/client";
+import type { EventWithImages as Event } from "../interfaces/event.interface";
 import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
 

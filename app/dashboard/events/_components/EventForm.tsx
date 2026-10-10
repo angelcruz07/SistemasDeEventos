@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import {
   Card,
   CardHeader,
@@ -12,7 +12,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { createEvent, updateEvent } from "../_actions/event.actions";
-import type { Event } from "@/app/generated/prisma/client";
+import type { EventWithImages as Event } from "../interfaces/event.interface";
+import { EventImagesField } from "./EventImagesField";
 import { cn } from "@/lib/utils";
 import {
   Type,
@@ -43,7 +44,7 @@ interface FormData {
   date: string;
   time: string;
   location: string;
-  imageUrl: string;
+  images: string[];
   isCancelled?: boolean;
 }
 
@@ -53,7 +54,7 @@ const emptyForm: FormData = {
   date: "",
   time: "",
   location: "",
-  imageUrl: "",
+  images: [],
 };
 
 function eventToFormData(event: Event): FormData {
@@ -66,19 +67,15 @@ function eventToFormData(event: Event): FormData {
     date: dateStr,
     time: event.time,
     location: event.location,
-    imageUrl: event.imageUrl ?? "",
+    images: event.images.map((i) => i.url),
     isCancelled: eventWithCancelled.isCancelled ?? false,
   };
 }
 
 const id = (prefix: string, name: string) => (prefix ? `${prefix}-${name}` : name);
 
-const UPLOAD_ENDPOINT = "/api/upload/cloudinary";
-
 export function EventForm({ event, onSuccess, onCancel, variant = "card", formIdPrefix = "" }: EventFormProps) {
   const [loading, setLoading] = useState(false);
-  const [uploading, setUploading] = useState(false);
-  const [uploadError, setUploadError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [formData, setFormData] = useState<FormData>(() =>
     event ? eventToFormData(event) : { ...emptyForm }
@@ -86,43 +83,13 @@ export function EventForm({ event, onSuccess, onCancel, variant = "card", formId
 
   const isEditing = !!event;
 
-  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setUploadError(null);
-    setUploading(true);
-    try {
-      const formDataUpload = new FormData();
-      formDataUpload.append("file", file);
-      const res = await fetch(UPLOAD_ENDPOINT, {
-        method: "POST",
-        body: formDataUpload,
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        setUploadError(data.error ?? "Error al subir la imagen");
-        return;
-      }
-      if (data.url) {
-        setFormData((prev) => ({ ...prev, imageUrl: data.url }));
-      }
-    } catch {
-      setUploadError("Error de conexión al subir la imagen");
-    } finally {
-      setUploading(false);
-      e.target.value = "";
-    }
-  };
-
-  // Sincronizar formulario cuando se selecciona otro evento para editar
-  useEffect(() => {
-    if (event) {
-      setFormData(eventToFormData(event));
-    } else {
-      setFormData({ ...emptyForm });
-    }
+  // Reset the form when another event is selected for editing (adjust state during render).
+  const [syncedEventId, setSyncedEventId] = useState(event?.id);
+  if (syncedEventId !== event?.id) {
+    setSyncedEventId(event?.id);
+    setFormData(event ? eventToFormData(event) : { ...emptyForm });
     setError(null);
-  }, [event?.id]);
+  }
 
   const handleChange = (field: keyof FormData, value: string | boolean) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
@@ -300,7 +267,7 @@ export function EventForm({ event, onSuccess, onCancel, variant = "card", formId
 
           <section className="space-y-4 pb-2 border-t border-border/60 pt-6">
             <h3 className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-              Ubicación e imagen
+              Ubicación e imágenes
             </h3>
             <div className="space-y-2">
               <Label htmlFor={id(formIdPrefix, "location")} className="text-sm font-medium flex items-center gap-2">
@@ -319,48 +286,12 @@ export function EventForm({ event, onSuccess, onCancel, variant = "card", formId
             <div className="space-y-2">
               <Label className="text-sm font-medium flex items-center gap-2">
                 <ImageIcon className="size-3.5 text-muted-foreground" />
-                Imagen del evento
+                Imágenes del evento
               </Label>
-              <div className="flex flex-col gap-2">
-                <div className="flex gap-2 flex-wrap items-center">
-                  <label className="cursor-pointer inline-flex">
-                    <input
-                      type="file"
-                      accept="image/jpeg,image/png,image/webp,image/gif"
-                      className="sr-only"
-                      disabled={uploading}
-                      onChange={handleImageUpload}
-                    />
-                    <span className="inline-flex items-center justify-center gap-2 rounded-lg border border-input bg-background px-3 py-2 text-sm font-medium h-9 hover:bg-accent hover:text-accent-foreground">
-                      {uploading ? (
-                        <>
-                          <Loader2 className="size-4 animate-spin shrink-0" />
-                          Subiendo...
-                        </>
-                      ) : (
-                        "Subir imagen"
-                      )}
-                    </span>
-                  </label>
-                  <span className="text-xs text-muted-foreground">JPEG, PNG, WebP o GIF. Máx. 5 MB</span>
-                </div>
-                {uploadError && (
-                  <p className="text-xs text-destructive flex items-center gap-1">
-                    <AlertCircle className="size-3.5 shrink-0" />
-                    {uploadError}
-                  </p>
-                )}
-                {formData.imageUrl ? (
-                  <div className="relative rounded-lg border border-border overflow-hidden bg-muted/30 w-full max-w-[280px] aspect-video">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={formData.imageUrl}
-                      alt="Vista previa"
-                      className="object-cover w-full h-full"
-                    />
-                  </div>
-                ) : null}
-              </div>
+              <EventImagesField
+                images={formData.images}
+                onChange={(images) => setFormData((prev) => ({ ...prev, images }))}
+              />
             </div>
           </section>
 
@@ -475,37 +406,11 @@ export function EventForm({ event, onSuccess, onCancel, variant = "card", formId
               />
             </div>
             <div className="space-y-2">
-              <Label>Imagen del evento</Label>
-              <div className="space-y-2">
-                <label className="inline-flex cursor-pointer">
-                  <input
-                    type="file"
-                    accept="image/jpeg,image/png,image/webp,image/gif"
-                    className="sr-only"
-                    disabled={uploading}
-                    onChange={handleImageUpload}
-                  />
-                  <span className="inline-flex items-center justify-center gap-2 rounded-md border border-input bg-background px-3 py-2 text-sm font-medium hover:bg-accent hover:text-accent-foreground">
-                    {uploading ? (
-                      <>
-                        <Loader2 className="size-4 animate-spin shrink-0" />
-                        Subiendo...
-                      </>
-                    ) : (
-                      "Subir imagen"
-                    )}
-                  </span>
-                </label>
-                {uploadError && (
-                  <p className="text-sm text-destructive">{uploadError}</p>
-                )}
-                {formData.imageUrl && (
-                  <div className="relative rounded border overflow-hidden max-w-[240px] aspect-video bg-muted/30">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={formData.imageUrl} alt="Vista previa" className="object-cover w-full h-full" />
-                  </div>
-                )}
-              </div>
+              <Label>Imágenes del evento</Label>
+              <EventImagesField
+                images={formData.images}
+                onChange={(images) => setFormData((prev) => ({ ...prev, images }))}
+              />
             </div>
           </div>
           <div className="flex flex-col sm:flex-row gap-2 mt-6">

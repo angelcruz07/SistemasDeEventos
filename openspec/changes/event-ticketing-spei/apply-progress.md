@@ -132,3 +132,11 @@ Next: PR10 (not started).
 Strict TDD: ticket-design tests RED (module not found) then GREEN (7 tests).
 Not verified: editor/save action/PDF route not run against DB or browser (TicketDocument rendered standalone via bun: valid %PDF).
 Next: PR11 (not started, droppable).
+
+## Batch 12: PR11 (branch feat/ticketing-pr11-carousel) - DONE
+- [x] 11.1 Migration `20261010130000_event_images` (hand-ordered: CREATE TABLE EventImage + index + FK, INSERT backfill of non-empty Event.imageUrl at position 0, then DROP COLUMN imageUrl). Generated via `migrate diff` (migrate dev hangs), applied with db:deploy, prisma generate. Backfill: 0 events had a non-empty imageUrl before; 0 EventImage rows after (3 events total).
+- [x] 11.2 `lib/ticketing/event-images.ts` (normalizeEventImages: sanitizeImageUrl + cloud scoping + dedupe + max 8; nextIndex/prevIndex; shouldAutoplay). createEvent/updateEvent take `images: string[]` (server-normalized; update = nested deleteMany + create in one transaction, owner-checked). getEvents/getEventById include ordered images; getEventBySlug returns `images: string[]` (url only). EventImagesField (multi-upload one request per file, reorder up/down, remove, first = cover). EventCard cover = images[0]. ImageCarousel on /event/[slug] (5s autoplay, pause on hover/focus/hidden tab, no autoplay with reduced motion, swipe, prev/next + dots with Spanish aria-labels, single image no controls, zero images placeholder, aspect-video box, next/image fill, theme tokens).
+- EventForm: replaced the sync-state-in-effect with render-time adjustment (lint went from 1 error + 2 warnings to 1 error + 1 warning).
+Strict TDD: event-images.test.ts RED (module not found) then GREEN (9 tests).
+Verification: vitest 276/276 (33 files); tsc clean; lint 1 error (EventsList) + 1 warning; build OK; migrate status up to date.
+Not verified: upload/save/carousel not run in a browser or against real images.

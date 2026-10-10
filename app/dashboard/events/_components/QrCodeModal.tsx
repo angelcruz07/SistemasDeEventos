@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import type { Event } from "@/app/generated/prisma/client";
+import type { EventWithImages as Event } from "../interfaces/event.interface";
 import { X, QrCode, ExternalLink } from "lucide-react";
 import { cn } from "@/lib/utils";
 

@@ -2,7 +2,7 @@
 
 import { Button } from "@/components/ui/button";
 import { EventForm } from "./EventForm";
-import type { Event } from "@/app/generated/prisma/client";
+import type { EventWithImages as Event } from "../interfaces/event.interface";
 import { X, Pencil } from "lucide-react";
 import { cn } from "@/lib/utils";
 

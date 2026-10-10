@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Calendar, MapPin, Clock, Pencil, Trash2, QrCode, Users } from "lucide-react";
 import Image from "next/image";
 import { cn } from "@/lib/utils";
-import type { Event } from "@/app/generated/prisma/client";
+import type { EventWithImages as Event } from "../interfaces/event.interface";
 
 interface EventCardProps {
   event: Event;
@@ -64,8 +64,7 @@ function formatDate(date: Date): string {
 }
 
 export function EventCard({ event, onEdit, onDelete, onShowQr }: EventCardProps) {
-  const imageUrl = event.imageUrl?.trim();
-  const hasValidImage = imageUrl && (imageUrl.startsWith("http://") || imageUrl.startsWith("https://"));
+  const coverUrl = event.images[0]?.url;
   const status = getEventStatus(event);
   const { label: statusLabel, className: statusClassName } = statusConfig[status];
 
@@ -77,9 +76,9 @@ export function EventCard({ event, onEdit, onDelete, onShowQr }: EventCardProps)
         aria-label={`Ir a la página de ${event.title}`}
       >
         <div className="relative aspect-video bg-muted flex items-center justify-center overflow-hidden shrink-0">
-          {hasValidImage ? (
+          {coverUrl ? (
             <Image
-              src={imageUrl}
+              src={coverUrl}
               alt={event.title}
               width={400}
               height={225}

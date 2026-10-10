@@ -85,7 +85,6 @@ model Event {
   date        DateTime
   time        String
   location    String
-  imageUrl    String
   slug        String   @unique
   createdBy   String
   createdAt   DateTime @default(now())
@@ -108,6 +107,19 @@ model Event {
   user       User        @relation(fields: [userId], references: [id], onDelete: Cascade)
   tickets    Ticket[]
   doorAccess DoorAccess?
+  images     EventImage[]
+}
+
+model EventImage {
+  id        String   @id @default(uuid())
+  eventId   String
+  url       String
+  position  Int
+  createdAt DateTime @default(now())
+
+  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@index([eventId, position])
 }
 
 model Ticket {
