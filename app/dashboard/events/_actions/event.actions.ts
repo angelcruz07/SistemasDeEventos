@@ -151,10 +151,14 @@ export async function updateEvent(data: UpdateEventInput) {
         date: new Date(data.date),
         time: data.time,
         location: data.location,
-        images: {
-          deleteMany: {},
-          create: images.map((url, position) => ({ url, position })),
-        },
+        // Only replace the gallery when the caller sent one; a partial update
+        // must never wipe existing images.
+        ...(Array.isArray(data.images) && {
+          images: {
+            deleteMany: {},
+            create: images.map((url, position) => ({ url, position })),
+          },
+        }),
         ...(typeof isCancelled === "boolean" && { isCancelled }),
       },
     });
