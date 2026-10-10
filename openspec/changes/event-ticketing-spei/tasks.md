@@ -122,7 +122,7 @@ Files: `lib/ticketing/{csv,cash-up}.ts` + tests, `[id]/attendees/export/route.ts
 
 ### PR10: Design editor + PDF (~400, base PR9) DROPPABLE
 Files: `lib/ticketing/ticket-design.ts` + test, `lib/pdf/TicketDocument.tsx`, `[id]/design/page.tsx`, `app/api/tickets/[token]/pdf/route.ts`, `next.config.ts` if needed.
-- [ ] 10.1 RED/GREEN `parseTicketDesign` (hex, https, defaults). 10.2 Editor with live preview. 10.3 PDF route (nodejs runtime; `serverExternalPackages` if Turbopack fails); apply design to TicketCard.
+- [x] 10.1 RED/GREEN `parseTicketDesign` (hex, https, defaults). 10.2 Editor with live preview. 10.3 PDF route (nodejs runtime; `serverExternalPackages` if Turbopack fails); apply design to TicketCard.
 - Rollback: revert; default design remains.
 
 ### PR11: Image carousel (~350, base PR9 or PR10) DROPPABLE

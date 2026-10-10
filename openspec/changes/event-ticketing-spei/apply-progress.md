@@ -124,3 +124,11 @@ Strict TDD: csv and cash-up tests RED (module not found) then GREEN (11 tests).
 Verification: vitest 257/257 (31 files); tsc clean; lint baseline (1 error EventsList, 2 warnings); build OK.
 Not verified: export route and summary not run against DB/browser.
 Next: PR10 (not started).
+
+## Batch 11: PR10 (branch feat/ticketing-pr10-design-pdf) - DONE
+- [x] 10.1 `lib/ticketing/ticket-design.ts`: parseTicketDesign (template whitelist, #RRGGBB only, https res.cloudinary.com image URLs only, footer <=140 else empty), WCAG contrastRatio/hasLowContrast (warn only), TEMPLATE_PRESETS. Migration `20261010120000_ticket_design` (additive: ADD COLUMN "ticketDesign" JSONB NOT NULL DEFAULT {}), generated via migrate diff, applied with db:deploy.
+- [x] 10.2 Owner page `/dashboard/events/[id]/design` + "Diseño" tab; DesignEditor (template picker, 3 color pickers + hex, logo/header upload via /api/upload/cloudinary, footer, contrast warning, live preview using the shared TicketCard); `updateTicketDesign` action (getOwnedEvent + server-side parse). TicketCard now takes the parsed design (inline styles only) and is used on /ticket/[token]; TicketActions adds "Descargar PDF" + ShareEventButton (new optional `path` prop so the ticket token URL is never shared; shares /event/<slug>).
+- [x] 10.3 `GET /api/tickets/[token]/pdf` (nodejs; PAID/CHECKED_IN only else 404; @react-pdf/renderer 4.9.0, peer react ^16.8..^19 OK) with lib/pdf/TicketDocument.tsx; QR from the same raw token; logo/header fetched only from res.cloudinary.com (https, redirect error, 5s timeout, 2MB, PNG/JPEG magic bytes) else omitted. serverExternalPackages NOT needed (build OK).
+Strict TDD: ticket-design tests RED (module not found) then GREEN (7 tests).
+Not verified: editor/save action/PDF route not run against DB or browser (TicketDocument rendered standalone via bun: valid %PDF).
+Next: PR11 (not started, droppable).
