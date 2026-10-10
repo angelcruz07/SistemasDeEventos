@@ -5,7 +5,9 @@ import { formatEventDate } from "@/lib/datetime";
 import { getTicketingEnv } from "@/lib/env";
 import { TicketDocument } from "@/lib/pdf/TicketDocument";
 import { formatShortCode } from "@/lib/ticketing/short-code";
+import { readBodyLimited } from "@/lib/ticketing/read-limited";
 import { IMAGE_HOST, parseTicketDesign } from "@/lib/ticketing/ticket-design";
+import { ticketViewFor } from "@/lib/ticketing/ticket-view";
 import { verifyTicketToken } from "@/lib/ticketing/token";
 
 export const runtime = "nodejs";
@@ -22,8 +24,12 @@ async function fetchImageDataUrl(url: string | null): Promise<string | null> {
     if (parsed.protocol !== "https:" || parsed.hostname !== IMAGE_HOST) return null;
     const res = await fetch(parsed, { redirect: "error", signal: AbortSignal.timeout(5000) });
     if (!res.ok) return null;
-    const bytes = Buffer.from(await res.arrayBuffer());
-    if (bytes.length === 0 || bytes.length > MAX_IMAGE_BYTES) return null;
+    const declared = Number(res.headers.get("content-length"));
+    if (Number.isFinite(declared) && declared > MAX_IMAGE_BYTES) return null;
+    // Counting reader; the fetch signal also covers the body read.
+    const read = await readBodyLimited(res.body, MAX_IMAGE_BYTES);
+    if (!read.ok || read.bytes.length === 0) return null;
+    const bytes = Buffer.from(read.bytes);
     const isPng = bytes.subarray(0, 4).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47]));
     const isJpeg = bytes[0] === 0xff && bytes[1] === 0xd8;
     if (!isPng && !isJpeg) return null;
@@ -44,13 +50,17 @@ export async function GET(_request: Request, { params }: { params: Promise<{ tok
       name: true,
       code: true,
       status: true,
+      rejectionReason: true,
       event: { select: { title: true, date: true, time: true, location: true, isCancelled: true, ticketDesign: true } },
     },
   });
-  if (!ticket || (ticket.status !== "PAID" && ticket.status !== "CHECKED_IN")) return notFound();
+  if (!ticket) return notFound();
+  // Same rule as the ticket page: only an issued ticket on a non-cancelled event.
+  const view = ticketViewFor({ ...ticket, eventCancelled: ticket.event.isCancelled });
+  if (view.kind !== "ticket") return notFound();
 
   const { event } = ticket;
-  const design = parseTicketDesign(event.ticketDesign);
+  const design = parseTicketDesign(event.ticketDesign, process.env.CLOUDINARY_CLOUD_NAME);
   const code = formatShortCode(ticket.code);
 
   try {
