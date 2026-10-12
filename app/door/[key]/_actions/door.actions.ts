@@ -1,6 +1,6 @@
 "use server";
 
-import { randomInt } from "node:crypto";
+import { randomInt, randomUUID } from "node:crypto";
 import { cookies, headers } from "next/headers";
 import { revalidatePath } from "next/cache";
 import prisma from "@/app/lib/prisma";
@@ -256,7 +256,11 @@ export async function checkIn(key: string, ticketId: string): Promise<CheckInRes
 
 class EmailTaken extends Error {}
 
-/** Cash walk-in: price and allowCash are read server-side; capacity is ignored by design. */
+/**
+ * Cash walk-in: price and allowCash are read server-side; capacity is ignored by design.
+ * Creates a PAID cash Order (quantity 1) and its CHECKED_IN ticket in one transaction;
+ * they share id and code, the same shape as a backfilled legacy purchase.
+ */
 export async function createWalkIn(key: string, input: unknown): Promise<WalkInResult> {
   try {
     const outcome = await requireDoorSession(key, "door-walkin");
@@ -281,21 +285,43 @@ export async function createWalkIn(key: string, input: unknown): Promise<WalkInR
       () => generateShortCode(randomInt),
       async (code) => {
         try {
-          return await prisma.ticket.create({
-            data: {
-              eventId: session.access.eventId,
-              code,
-              name,
-              email,
-              answers,
-              status,
-              paymentMethod: "CASH",
-              amountCents: event.priceCents,
-              currency: event.currency,
-              checkedInAt: new Date(),
-              checkedInBy: session.staffName,
-            },
-            select: TICKET_SELECT,
+          const id = randomUUID();
+          return await prisma.$transaction(async (tx) => {
+            await tx.order.create({
+              data: {
+                id,
+                eventId: session.access.eventId,
+                code,
+                name,
+                email,
+                answers,
+                quantity: 1,
+                unitPriceCents: event.priceCents,
+                amountCents: event.priceCents,
+                currency: event.currency,
+                paymentMethod: "CASH",
+                status: "PAID",
+              },
+            });
+            return tx.ticket.create({
+              data: {
+                id,
+                orderId: id,
+                seq: 1,
+                eventId: session.access.eventId,
+                code,
+                name,
+                email,
+                answers,
+                status,
+                paymentMethod: "CASH",
+                amountCents: event.priceCents,
+                currency: event.currency,
+                checkedInAt: new Date(),
+                checkedInBy: session.staffName,
+              },
+              select: TICKET_SELECT,
+            });
           });
         } catch (error) {
           // The unique violation is either the short code (retry) or (eventId, email) (refuse).
