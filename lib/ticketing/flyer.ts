@@ -50,7 +50,11 @@ export function cloudinaryTransform(url: string, transformation: string): string
   return `${head}${transformation}/${url.slice(head.length)}`;
 }
 
-/** The whole image as a JPEG (never cropped; posters keep their edges) over a blurred backdrop. */
-export function cloudinaryJpegUrl(url: string, width: number, height: number): string {
-  return cloudinaryTransform(url, `f_jpg,c_pad,b_blurred:400:15,w_${width},h_${height}`);
+/**
+ * The whole image as a JPEG (never cropped; posters keep their edges), padded with
+ * the design background. `b_blurred` is rejected (HTTP 400) on real accounts.
+ */
+export function cloudinaryJpegUrl(url: string, width: number, height: number, background = "#000000"): string {
+  const rgb = /^#[0-9a-fA-F]{6}$/.test(background) ? background.slice(1) : "000000";
+  return cloudinaryTransform(url, `f_jpg,c_pad,b_rgb:${rgb},w_${width},h_${height}`);
 }

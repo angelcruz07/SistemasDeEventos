@@ -77,7 +77,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ slug
       margin: 1,
       width: 480,
     }),
-    fetchImageDataUrl(coverUrl && cloudinaryJpegUrl(coverUrl, width, 900)),
+    fetchImageDataUrl(coverUrl && cloudinaryJpegUrl(coverUrl, width, 900, design.backgroundColor)),
     fetchImageDataUrl(logoUrl && cloudinaryTransform(logoUrl, "f_png,c_limit,w_320,h_160")),
   ]);
 
@@ -109,14 +109,17 @@ export async function GET(request: Request, { params }: { params: Promise<{ slug
             display: "flex",
             position: "relative",
             overflow: "hidden",
-            backgroundImage: `linear-gradient(135deg, ${theme.accent}, ${theme.background})`,
+            // Solid backdrop behind an uncropped cover; gradient only when there is no cover.
+            ...(cover
+              ? { backgroundColor: theme.background }
+              : { backgroundImage: `linear-gradient(135deg, ${theme.accent}, ${theme.background})` }),
           }}
         >
           {cover && (
             <img
               src={cover}
               alt=""
-              style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%", objectFit: "cover" }}
+              style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%", objectFit: "contain" }}
             />
           )}
           {logo ? (
@@ -126,12 +129,10 @@ export async function GET(request: Request, { params }: { params: Promise<{ slug
                 top: 40,
                 left: 40,
                 display: "flex",
-                padding: 16,
-                borderRadius: 20,
-                backgroundColor: "#FFFFFF",
               }}
             >
-              <img src={logo} alt="" style={{ maxHeight: 80, maxWidth: 240, objectFit: "contain" }} />
+              {/* Satori renders <img> at 0x0 without explicit width/height. */}
+              <img src={logo} alt="" width={240} height={120} style={{ width: 240, height: 120, objectFit: "contain" }} />
             </div>
           ) : null}
         </div>

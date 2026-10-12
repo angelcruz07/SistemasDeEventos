@@ -42,8 +42,9 @@ describe("filenames", () => {
 
 describe("cloudinaryJpegUrl", () => {
   it("fits the whole image over a blurred JPEG backdrop", () => {
-    expect(cloudinaryJpegUrl("https://res.cloudinary.com/demo/image/upload/v1/a/b.webp", 1080, 640)).toBe(
-      "https://res.cloudinary.com/demo/image/upload/f_jpg,c_pad,b_blurred:400:15,w_1080,h_640/v1/a/b.webp",
+    // b_blurred is rejected (HTTP 400) on real accounts; pad with the design background instead.
+    expect(cloudinaryJpegUrl("https://res.cloudinary.com/demo/image/upload/v1/a/b.webp", 1080, 640, "#0F172A")).toBe(
+      "https://res.cloudinary.com/demo/image/upload/f_jpg,c_pad,b_rgb:0F172A,w_1080,h_640/v1/a/b.webp",
     );
   });
   it("leaves URLs without an /upload/ segment untouched", () => {
