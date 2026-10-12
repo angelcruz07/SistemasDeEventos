@@ -16,6 +16,11 @@ export function hasSpot(held: number, capacity: number | null): boolean {
   return capacity === null || held < capacity;
 }
 
+/** Whether `quantity` more spots fit. `capacity` null means unlimited. */
+export function hasRoom(held: number, quantity: number, capacity: number | null): boolean {
+  return capacity === null || held + quantity <= capacity;
+}
+
 export type RegistrationAvailability = { open: true } | { open: false; reason: "closed" | "full" };
 
 export function isRegistrationOpen(

@@ -1,5 +1,5 @@
-import type { TicketStatus } from "@/app/generated/prisma/enums";
-import { hasSpot } from "./capacity";
+import type { OrderStatus, TicketStatus } from "@/app/generated/prisma/enums";
+import { hasRoom } from "./capacity";
 import { MAX_RECEIPT_BYTES } from "./receipt-file";
 
 /** Receipt limit plus multipart overhead; anything larger is refused before reading the body. */
@@ -23,12 +23,14 @@ export type UploadDecision = { kind: "accept" } | { kind: "refused"; reason: Upl
  * count simply counts as full.
  */
 export function decideReceiptUpload(input: {
-  status: TicketStatus;
+  status: TicketStatus | OrderStatus;
   event: { isCancelled: boolean; capacity: number | null };
   held: number;
+  /** Spots the purchase takes; defaults to 1 (a single ticket). */
+  quantity?: number;
 }): UploadDecision {
   if (input.event.isCancelled) return { kind: "refused", reason: "cancelled" };
   if (input.status !== "PENDING_RECEIPT" && input.status !== "REJECTED") return { kind: "refused", reason: "status" };
-  if (!hasSpot(input.held, input.event.capacity)) return { kind: "refused", reason: "full" };
+  if (!hasRoom(input.held, input.quantity ?? 1, input.event.capacity)) return { kind: "refused", reason: "full" };
   return { kind: "accept" };
 }

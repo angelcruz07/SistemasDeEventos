@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { HOLDING_STATUSES, countHeld, hasSpot, isRegistrationOpen } from "./capacity";
+import { HOLDING_STATUSES, countHeld, hasRoom, hasSpot, isRegistrationOpen } from "./capacity";
 
 describe("HOLDING_STATUSES", () => {
   it("is PENDING_VALIDATION, PAID and CHECKED_IN only", () => {
@@ -22,6 +22,26 @@ describe("hasSpot", () => {
     expect(hasSpot(99, 100)).toBe(true);
     expect(hasSpot(100, 100)).toBe(false);
     expect(hasSpot(101, 100)).toBe(false);
+  });
+});
+
+describe("hasRoom", () => {
+  it("is unlimited without capacity", () => {
+    expect(hasRoom(10_000, 50, null)).toBe(true);
+  });
+  it("accepts a quantity that fits exactly", () => {
+    expect(hasRoom(98, 2, 100)).toBe(true);
+    expect(hasRoom(99, 1, 100)).toBe(true);
+  });
+  it("refuses a quantity that overshoots", () => {
+    expect(hasRoom(98, 3, 100)).toBe(false);
+    expect(hasRoom(100, 1, 100)).toBe(false);
+  });
+  it("treats capacity lowered below held as no room", () => {
+    expect(hasRoom(12, 1, 10)).toBe(false);
+  });
+  it("matches hasSpot for a quantity of 1", () => {
+    for (const held of [0, 99, 100, 101]) expect(hasRoom(held, 1, 100)).toBe(hasSpot(held, 100));
   });
 });
 

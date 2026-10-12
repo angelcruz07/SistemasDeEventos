@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { TicketStatus } from "@/app/generated/prisma/enums";
+import type { OrderStatus, TicketStatus } from "@/app/generated/prisma/enums";
 import { decideReceiptUpload, isBodyTooLarge, MAX_REQUEST_BYTES } from "./receipt-upload";
 
 const event = { isCancelled: false, capacity: 10 };
@@ -39,5 +39,27 @@ describe("isBodyTooLarge", () => {
   it("rejects malformed lengths", () => {
     expect(isBodyTooLarge("abc")).toBe(true);
     expect(isBodyTooLarge("-5")).toBe(true);
+  });
+});
+
+describe("decideReceiptUpload with quantity", () => {
+  const decideQty = (status: OrderStatus, held: number, quantity: number, capacity: number | null = 10) =>
+    decideReceiptUpload({ status, event: { isCancelled: false, capacity }, held, quantity });
+
+  it("defaults to quantity 1", () => {
+    expect(decideReceiptUpload({ status: "PENDING_RECEIPT", event, held: 9 })).toEqual({ kind: "accept" });
+  });
+  it("accepts a group that fits exactly", () => {
+    expect(decideQty("PENDING_RECEIPT", 7, 3)).toEqual({ kind: "accept" });
+  });
+  it("refuses a group that overshoots as full", () => {
+    expect(decideQty("PENDING_RECEIPT", 8, 3)).toEqual({ kind: "refused", reason: "full" });
+  });
+  it("is unlimited without capacity", () => {
+    expect(decideQty("REJECTED", 999, 50, null)).toEqual({ kind: "accept" });
+  });
+  it("refuses a PAID or CANCELLED order by status", () => {
+    expect(decideQty("PAID", 0, 2)).toEqual({ kind: "refused", reason: "status" });
+    expect(decideQty("CANCELLED", 0, 2)).toEqual({ kind: "refused", reason: "status" });
   });
 });
