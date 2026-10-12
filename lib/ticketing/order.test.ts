@@ -160,6 +160,12 @@ describe("planIssuance", () => {
   it("never flips more than the quantity", () => {
     expect(planIssuance(2, 4)).toEqual({ flip: 2, create: 0 });
   });
+  it("counts tickets already issued (old code approved the ticket first) and never exceeds the quantity", () => {
+    expect(planIssuance(1, 0, 1)).toEqual({ flip: 0, create: 0 });
+    expect(planIssuance(3, 1, 1)).toEqual({ flip: 1, create: 1 });
+    expect(planIssuance(2, 0, 5)).toEqual({ flip: 0, create: 0 });
+    expect(planIssuance(3, 0, 1)).toEqual({ flip: 0, create: 2 });
+  });
 });
 
 describe("canTransitionOrder", () => {
@@ -237,24 +243,24 @@ describe("resolveExistingOrder", () => {
   it("returns an open order as the duplicate target", () => {
     expect(resolveExistingOrder({ openOrder: { id: "o1", status: "REJECTED" }, legacyOrder: null })).toEqual({
       existing: { id: "o1", status: "REJECTED" },
-      emailTaken: false,
+      taken: null,
     });
   });
   it("uses the lazily resolved legacy order when it is open", () => {
     expect(resolveExistingOrder({ openOrder: null, legacyOrder: { id: "t1", status: "PENDING_RECEIPT" } })).toEqual({
       existing: { id: "t1", status: "PENDING_RECEIPT" },
-      emailTaken: false,
+      taken: null,
     });
   });
-  it("flags the email as taken when a ticket exists but its order is not open (legacy unique)", () => {
+  it("reports the settled order when a ticket exists but its order is not open (legacy unique)", () => {
     for (const status of ["PAID", "CANCELLED"] as const) {
       expect(resolveExistingOrder({ openOrder: null, legacyOrder: { id: "t1", status } })).toEqual({
         existing: null,
-        emailTaken: true,
+        taken: { id: "t1", status },
       });
     }
   });
   it("is clean when nothing exists", () => {
-    expect(resolveExistingOrder({ openOrder: null, legacyOrder: null })).toEqual({ existing: null, emailTaken: false });
+    expect(resolveExistingOrder({ openOrder: null, legacyOrder: null })).toEqual({ existing: null, taken: null });
   });
 });

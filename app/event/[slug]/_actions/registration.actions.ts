@@ -37,7 +37,6 @@ const RATE_LIMITED: RegisterResult = {
   error: "Demasiados intentos. Espera unos minutos e inténtalo de nuevo.",
 };
 const OPEN_STATUSES = ORDER_STATUSES.filter(isOpenOrder);
-const EMAIL_TAKEN: RegisterResult = { success: false, error: "Ya tienes un boleto con este correo." };
 const REFUSALS = {
   closed: "Las inscripciones para este evento están cerradas.",
   full: "Este evento ya no tiene lugares disponibles.",
@@ -62,7 +61,8 @@ function isInput(value: unknown): value is RegistrationInput {
  * per (event, email): a repeated email re-sends that order's link and the response is
  * the same as for a new registration, so the form cannot be used to probe emails.
  * While the legacy (eventId, email) ticket unique exists, a second purchase by a buyer
- * whose order is already PAID/CANCELLED gets a clear refusal instead.
+ * whose order is already PAID/CANCELLED cannot create anything: the response is still the
+ * generic success (no email oracle), a PAID order re-sends its tickets, CANCELLED sends nothing.
  * A quantity-1 order is mirrored by one ticket with the SAME id and code (the shape the
  * migration backfill produces), so emailed links and the organizer list keep working.
  * (When the event is closed or full a NEW email is refused while a known one
@@ -111,8 +111,13 @@ export async function registerForEvent(slug: string, input: unknown): Promise<Re
             ? null
             : await tx.ticket.findUnique({ where: { eventId_email: { eventId: event.id, email } }, select: { id: true } });
           const legacyOrder = legacyTicket ? await ensureOrderForTicket(tx, legacyTicket.id) : null;
-          const { existing, emailTaken } = resolveExistingOrder({ openOrder, legacyOrder });
-          if (emailTaken) return { kind: "emailTaken" as const };
+          const { existing, taken } = resolveExistingOrder({ openOrder, legacyOrder });
+          // The legacy email unique makes a second purchase impossible. Answer like any
+          // registration (no oracle) and let after() re-send the tickets of a PAID order.
+          if (taken) {
+            const order = await tx.order.findUniqueOrThrow({ where: { id: taken.id } });
+            return { kind: "settled" as const, order, event: current };
+          }
 
           const decision = decideOrder({
             event: current,
@@ -165,8 +170,22 @@ export async function registerForEvent(slug: string, input: unknown): Promise<Re
       isUniqueViolation,
     );
 
-    if (outcome.kind === "emailTaken") return EMAIL_TAKEN;
     if (outcome.kind === "refused") return { success: false, error: REFUSALS[outcome.reason] };
+
+    if (outcome.kind === "settled") {
+      const { order, event: settledEvent } = outcome;
+      if (order.status === "PAID") {
+        after(async () => {
+          const tickets = await prisma.ticket.findMany({
+            where: { orderId: order.id, status: { in: ["PAID", "CHECKED_IN"] } },
+            orderBy: { seq: "asc" },
+            select: { id: true, name: true, code: true },
+          });
+          for (const t of tickets) await sendTicketEmail({ ...t, email }, settledEvent);
+        });
+      }
+      return { success: true };
+    }
 
     // Best effort, after commit and after the response: a provider outage must not undo the
     // registration, and awaiting the send would make a duplicate (re-send) slower than a new

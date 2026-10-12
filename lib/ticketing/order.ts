@@ -102,12 +102,18 @@ export function decideOrder(input: {
 }
 
 /**
- * Approval issuance: legacy pre-issue tickets are flipped to PAID first, the rest of
- * the quantity is created new.
+ * Approval issuance: tickets already issued count first, legacy pre-issue tickets are
+ * flipped to PAID next, and only the rest of the quantity is created new.
  */
-export function planIssuance(quantity: number, preIssue: number): { flip: number; create: number } {
-  const flip = Math.min(preIssue, quantity);
-  return { flip, create: quantity - flip };
+export function planIssuance(
+  quantity: number,
+  preIssue: number,
+  alreadyIssued = 0,
+): { flip: number; create: number } {
+  // Tickets already PAID/CHECKED_IN (e.g. approved by older code) count toward the quantity.
+  const remaining = Math.max(0, quantity - alreadyIssued);
+  const flip = Math.min(preIssue, remaining);
+  return { flip, create: remaining - flip };
 }
 
 export const ORDER_TRANSITIONS: Record<OrderStatus, readonly OrderStatus[]> = {
@@ -177,9 +183,13 @@ export function legacyOrderFromTicket(ticket: LegacyTicket) {
 export function resolveExistingOrder(input: {
   openOrder: { id: string; status: OrderStatus } | null;
   legacyOrder: { id: string; status: OrderStatus } | null;
-}): { existing: { id: string; status: OrderStatus } | null; emailTaken: boolean } {
-  if (input.openOrder) return { existing: input.openOrder, emailTaken: false };
+}): {
+  existing: { id: string; status: OrderStatus } | null;
+  /** The settled (PAID/CANCELLED) order that owns the email through the legacy unique. */
+  taken: { id: string; status: OrderStatus } | null;
+} {
+  if (input.openOrder) return { existing: input.openOrder, taken: null };
   const legacy = input.legacyOrder;
-  if (!legacy) return { existing: null, emailTaken: false };
-  return isOpenOrder(legacy.status) ? { existing: legacy, emailTaken: false } : { existing: null, emailTaken: true };
+  if (!legacy) return { existing: null, taken: null };
+  return isOpenOrder(legacy.status) ? { existing: legacy, taken: null } : { existing: null, taken: legacy };
 }
