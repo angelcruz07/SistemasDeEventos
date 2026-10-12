@@ -1,6 +1,6 @@
 "use server";
 
-import { randomInt } from "node:crypto";
+import { randomInt, randomUUID } from "node:crypto";
 import { headers } from "next/headers";
 import { after } from "next/server";
 import type { Prisma } from "@/app/generated/prisma/client";
@@ -8,10 +8,12 @@ import prisma from "@/app/lib/prisma";
 import { getTicketingEnv } from "@/lib/env";
 import { hitRateLimit } from "@/lib/server/rate-limit";
 import { getClientIp, rateLimitKey } from "@/lib/server/request-keys";
-import { sendTicketEmail } from "@/lib/server/ticket-email";
-import { HOLDING_STATUSES } from "@/lib/ticketing/capacity";
+import { countHeld } from "@/lib/server/held";
+import { ensureOrderForTicket, lockEvent } from "@/lib/server/orders";
+import { sendOrderEmail, sendTicketEmail } from "@/lib/server/ticket-email";
 import { parseFormSchema, validateAnswers } from "@/lib/ticketing/form-schema";
-import { decideRegistration, emailKindFor, isUniqueViolation } from "@/lib/ticketing/registration";
+import { ORDER_STATUSES, decideOrder, isOpenOrder, resolveExistingOrder } from "@/lib/ticketing/order";
+import { emailKindFor, isUniqueViolation } from "@/lib/ticketing/registration";
 import { createWithUniqueCode, generateShortCode } from "@/lib/ticketing/short-code";
 
 export interface RegistrationInput {
@@ -34,9 +36,13 @@ const RATE_LIMITED: RegisterResult = {
   success: false,
   error: "Demasiados intentos. Espera unos minutos e inténtalo de nuevo.",
 };
+const OPEN_STATUSES = ORDER_STATUSES.filter(isOpenOrder);
+const EMAIL_TAKEN: RegisterResult = { success: false, error: "Ya tienes un boleto con este correo." };
 const REFUSALS = {
   closed: "Las inscripciones para este evento están cerradas.",
   full: "Este evento ya no tiene lugares disponibles.",
+  // Quantity is fixed at 1 until the buyer UI ships, so a quantity refusal can only mean no room.
+  quantity: "Este evento ya no tiene lugares disponibles.",
 } as const;
 
 function isInput(value: unknown): value is RegistrationInput {
@@ -52,9 +58,13 @@ function isInput(value: unknown): value is RegistrationInput {
 }
 
 /**
- * Public registration. One ticket per (event, email). A repeated email never
- * creates a second ticket: the existing link is re-sent and the response is the
- * same as for a new registration, so the form cannot be used to probe emails.
+ * Public registration: creates an Order (quantity 1 for now). At most one OPEN order
+ * per (event, email): a repeated email re-sends that order's link and the response is
+ * the same as for a new registration, so the form cannot be used to probe emails.
+ * While the legacy (eventId, email) ticket unique exists, a second purchase by a buyer
+ * whose order is already PAID/CANCELLED gets a clear refusal instead.
+ * A quantity-1 order is mirrored by one ticket with the SAME id and code (the shape the
+ * migration backfill produces), so emailed links and the organizer list keep working.
  * (When the event is closed or full a NEW email is refused while a known one
  * still succeeds; that small signal is accepted for the sake of link recovery.)
  */
@@ -89,48 +99,84 @@ export async function registerForEvent(slug: string, input: unknown): Promise<Re
       (code) =>
         prisma.$transaction(async (tx) => {
           // Serialize registrations (and receipt uploads) per event so capacity cannot be oversold.
-          await tx.$queryRaw`SELECT "id" FROM "Event" WHERE "id" = ${event.id} FOR UPDATE`;
+          await lockEvent(tx, event.id);
           const current = await tx.event.findUniqueOrThrow({ where: { id: event.id } });
-          const existing = await tx.ticket.findUnique({
-            where: { eventId_email: { eventId: event.id, email } },
+          const openOrder = await tx.order.findFirst({
+            where: { eventId: event.id, email, status: { in: OPEN_STATUSES } },
+            orderBy: { createdAt: "desc" },
+            select: { id: true, status: true },
           });
-          const held = existing
-            ? 0
-            : await tx.ticket.count({ where: { eventId: event.id, status: { in: [...HOLDING_STATUSES] } } });
+          // A ticket written by code that predates orders gets its order resolved here, under the lock.
+          const legacyTicket = openOrder
+            ? null
+            : await tx.ticket.findUnique({ where: { eventId_email: { eventId: event.id, email } }, select: { id: true } });
+          const legacyOrder = legacyTicket ? await ensureOrderForTicket(tx, legacyTicket.id) : null;
+          const { existing, emailTaken } = resolveExistingOrder({ openOrder, legacyOrder });
+          if (emailTaken) return { kind: "emailTaken" as const };
 
-          const decision = decideRegistration({ event: current, held, existing });
+          const decision = decideOrder({
+            event: current,
+            held: await countHeld(tx, event.id),
+            quantity: 1,
+            existing,
+          });
           if (decision.kind === "refused") return decision;
-          if (decision.kind === "duplicate") return { kind: "duplicate" as const, ticket: existing!, event: current };
+          if (decision.kind === "duplicate") {
+            const order = await tx.order.findUniqueOrThrow({ where: { id: decision.orderId } });
+            return { kind: "duplicate" as const, order, event: current };
+          }
 
-          const ticket = await tx.ticket.create({
+          const id = randomUUID();
+          const answersJson = answers as unknown as Prisma.InputJsonValue;
+          const order = await tx.order.create({
             data: {
+              id,
               eventId: event.id,
               code,
               name,
               email,
-              answers: answers as unknown as Prisma.InputJsonValue,
+              answers: answersJson,
+              quantity: 1,
+              unitPriceCents: current.priceCents,
+              amountCents: decision.amountCents,
+              currency: current.currency,
+              paymentMethod: decision.method,
+              status: decision.status,
+            },
+          });
+          await tx.ticket.create({
+            data: {
+              id,
+              orderId: id,
+              seq: 1,
+              eventId: event.id,
+              code,
+              name,
+              email,
+              answers: answersJson,
               status: decision.status,
               paymentMethod: decision.method,
               amountCents: current.priceCents,
               currency: current.currency,
             },
           });
-          return { kind: "created" as const, ticket, event: current };
+          return { kind: "created" as const, order, event: current };
         }, TX_OPTIONS),
       isUniqueViolation,
     );
 
+    if (outcome.kind === "emailTaken") return EMAIL_TAKEN;
     if (outcome.kind === "refused") return { success: false, error: REFUSALS[outcome.reason] };
 
     // Best effort, after commit and after the response: a provider outage must not undo the
     // registration, and awaiting the send would make a duplicate (re-send) slower than a new
-    // registration, revealing which emails are registered. sendTicketEmail never throws.
-    const emailKind = emailKindFor(outcome.ticket.status);
+    // registration, revealing which emails are registered. the senders never throw.
+    const emailKind = emailKindFor(outcome.order.status);
     if (emailKind) {
-      const { ticket, event: emailEvent } = outcome;
-      after(() =>
-        sendTicketEmail(emailKind, { id: ticket.id, name: ticket.name, email, code: ticket.code }, emailEvent),
-      );
+      const { order, event: emailEvent } = outcome;
+      const target = { id: order.id, name: order.name, email, code: order.code, amountCents: order.amountCents };
+      // Quantity 1: the order id is also its ticket id.
+      after(() => (emailKind === "ticket" ? sendTicketEmail(target, emailEvent) : sendOrderEmail("received", target, emailEvent)));
     }
     return { success: true };
   } catch (error) {

@@ -4,7 +4,7 @@ import prisma from "@/app/lib/prisma";
 import { getSession } from "@/lib/auth-server";
 import { serverErrorToSpanish } from "@/lib/error-messages";
 import { revalidatePath } from "next/cache";
-import { HOLDING_STATUSES } from "@/lib/ticketing/capacity";
+import { countHeld } from "@/lib/server/held";
 import { parseFormSchema } from "@/lib/ticketing/form-schema";
 import { registrationAvailability } from "@/lib/ticketing/registration";
 import { parseTicketDesign } from "@/lib/ticketing/ticket-design";
@@ -259,9 +259,7 @@ export async function getEventBySlug(slug: string) {
     });
     if (!event) return { success: true, data: null };
 
-    const held = await prisma.ticket.count({
-      where: { eventId: event.id, status: { in: [...HOLDING_STATUSES] } },
-    });
+    const held = await countHeld(prisma, event.id);
     const availability = registrationAvailability({ ...event, isCancelled: false }, held);
     return {
       success: true,
