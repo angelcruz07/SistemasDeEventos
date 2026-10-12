@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { MAX_REASON_LENGTH } from "@/lib/ticketing/review";
@@ -15,6 +16,7 @@ export function ReceiptDialog({
   row: AttendeeRow;
   onClose: () => void;
 }) {
+  const router = useRouter();
   const [rejecting, setRejecting] = useState(false);
   const [reason, setReason] = useState("");
   const [pending, setPending] = useState(false);
@@ -25,8 +27,11 @@ export function ReceiptDialog({
     setError(null);
     const result = await action();
     setPending(false);
-    if (result.success) onClose();
-    else setError(result.error);
+    if (result.success) {
+      onClose();
+      // Re-fetch the server list: with a status filter in the URL the row must update or disappear.
+      router.refresh();
+    } else setError(result.error);
   }
 
   const receipt = row.receipt;
