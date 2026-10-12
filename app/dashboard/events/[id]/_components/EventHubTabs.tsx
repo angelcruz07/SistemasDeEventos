@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 
 const TABS = [
+  { segment: "details", label: "Detalles" },
   { segment: "ticketing", label: "Boletos y pagos" },
   { segment: "attendees", label: "Asistentes" },
   { segment: "form", label: "Formulario" },

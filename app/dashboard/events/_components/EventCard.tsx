@@ -3,14 +3,13 @@
 import Link from "next/link";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Calendar, MapPin, Clock, Pencil, Trash2, QrCode, Users } from "lucide-react";
+import { Calendar, MapPin, Clock, Settings2, Trash2, QrCode } from "lucide-react";
 import Image from "next/image";
 import { cn } from "@/lib/utils";
 import type { EventWithImages as Event } from "../interfaces/event.interface";
 
 interface EventCardProps {
   event: Event;
-  onEdit: (event: Event) => void;
   onDelete: (event: Event) => void;
   onShowQr?: (event: Event) => void;
 }
@@ -65,7 +64,7 @@ function formatDate(date: Date): string {
   });
 }
 
-export function EventCard({ event, onEdit, onDelete, onShowQr }: EventCardProps) {
+export function EventCard({ event, onDelete, onShowQr }: EventCardProps) {
   const coverUrl = event.images[0]?.url;
   const status = getEventStatus(event);
   const { label: statusLabel, className: statusClassName } = statusConfig[status];
@@ -134,15 +133,11 @@ export function EventCard({ event, onEdit, onDelete, onShowQr }: EventCardProps)
             <span className="truncate hidden sm:inline">Ver QR</span>
           </Button>
         )}
-        <Button variant="outline" size="sm" className="w-full sm:w-auto min-h-9 shrink-0" asChild>
-          <Link href={`/dashboard/events/${event.id}/ticketing`}>
-            <Users className="size-4 mr-1 shrink-0" />
-            Boletos
+        <Button size="sm" className="w-full sm:w-auto min-h-9 shrink-0" asChild>
+          <Link href={`/dashboard/events/${event.id}/details`}>
+            <Settings2 className="size-4 mr-1 shrink-0" />
+            Gestionar
           </Link>
-        </Button>
-        <Button variant="outline" size="sm" className="w-full sm:w-auto min-h-9 shrink-0" onClick={() => onEdit(event)}>
-          <Pencil className="size-4 mr-1 shrink-0" />
-          Editar
         </Button>
         <Button variant="destructive" size="sm" className="w-full sm:w-auto min-h-9 shrink-0" onClick={() => onDelete(event)}>
           <Trash2 className="size-4 mr-1 shrink-0" />
