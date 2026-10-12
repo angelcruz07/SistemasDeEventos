@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { flyerFilename, flyerTitleFontSize, parseFlyerFormat, qrFilename, truncateText } from "./flyer";
+import { cloudinaryJpegUrl, flyerFilename, flyerTitleFontSize, parseFlyerFormat, qrFilename, truncateText } from "./flyer";
 
 describe("parseFlyerFormat", () => {
   it("defaults to post and accepts story", () => {
@@ -37,5 +37,17 @@ describe("filenames", () => {
     expect(qrFilename("ABCD1234")).toBe("qr-ABCD1234.png");
     expect(qrFilename('AB"\r\nCD/..')).toBe("qr-ABCD.png");
     expect(qrFilename("")).toBe("qr-boleto.png");
+  });
+});
+
+describe("cloudinaryJpegUrl", () => {
+  it("inserts a JPEG, sized transformation after /upload/", () => {
+    expect(cloudinaryJpegUrl("https://res.cloudinary.com/demo/image/upload/v1/a/b.webp", 1080, 640)).toBe(
+      "https://res.cloudinary.com/demo/image/upload/f_jpg,c_fill,w_1080,h_640/v1/a/b.webp",
+    );
+  });
+  it("leaves URLs without an /upload/ segment untouched", () => {
+    const url = "https://res.cloudinary.com/demo/image/fetch/x.png";
+    expect(cloudinaryJpegUrl(url, 100, 100)).toBe(url);
   });
 });

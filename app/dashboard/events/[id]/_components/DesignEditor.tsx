@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { AlertCircle, Check, Loader2 } from "lucide-react";
+import { AlertCircle, Check, Download, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -20,6 +20,8 @@ import { updateTicketDesign } from "../_actions/design.actions";
 const UPLOAD_ENDPOINT = "/api/upload/cloudinary";
 const TEMPLATE_LABELS: Record<TicketTemplate, string> = { minimal: "Minimalista", dark: "Oscuro", image: "Con imagen" };
 const HEX = /^#[0-9a-fA-F]{6}$/;
+const flyerLinkClass =
+  "inline-flex min-h-10 items-center justify-center gap-2 rounded-md border bg-background px-3 text-sm font-medium shadow-xs";
 
 function ColorField({
   id,
@@ -114,6 +116,10 @@ export function DesignEditor({
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Bumped on save so the flyer preview (cached for minutes) reloads with the new design.
+  const [flyerVersion, setFlyerVersion] = useState(0);
+
+  const flyerPath = `/api/events/${encodeURIComponent(slug)}/flyer`;
 
   const set = <K extends keyof TicketDesign>(key: K, value: TicketDesign[K]) => {
     setDesign((prev) => ({ ...prev, [key]: value }));
@@ -140,7 +146,10 @@ export function DesignEditor({
     setError(null);
     const result = await updateTicketDesign(eventId, design);
     setSaving(false);
-    if (result.success) setSaved(true);
+    if (result.success) {
+      setSaved(true);
+      setFlyerVersion((v) => v + 1);
+    }
     else setError(result.error);
   };
 
@@ -232,6 +241,31 @@ export function DesignEditor({
             checkedIn={false}
           />
         </div>
+
+        <Card className="mx-auto max-w-sm">
+          <CardHeader>
+            <CardTitle>Flyer</CardTitle>
+            <CardDescription>
+              Imagen lista para publicar en redes, con el código QR de tu página del evento. Refleja el diseño guardado.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {/* eslint-disable-next-line @next/next/no-img-element -- dynamic same-origin PNG generated on demand */}
+            <img
+              src={`${flyerPath}?v=${flyerVersion}`}
+              alt="Vista previa del flyer del evento"
+              className="mx-auto w-full max-w-[280px] rounded-md border"
+            />
+            <div className="grid gap-2 sm:grid-cols-2">
+              <a href={`${flyerPath}?download=1`} download className={flyerLinkClass}>
+                <Download className="size-4" /> Descargar flyer (post)
+              </a>
+              <a href={`${flyerPath}?format=story&download=1`} download className={flyerLinkClass}>
+                <Download className="size-4" /> Descargar historia
+              </a>
+            </div>
+          </CardContent>
+        </Card>
       </div>
     </div>
   );

@@ -40,3 +40,17 @@ export function flyerFilename(slug: string, format: FlyerFormat): string {
 export function qrFilename(code: string): string {
   return `qr-${code.replace(/[^A-Za-z0-9]/g, "") || "boleto"}.png`;
 }
+
+/** Inserts a Cloudinary transformation after /upload/. Expects an already sanitized Cloudinary URL. */
+export function cloudinaryTransform(url: string, transformation: string): string {
+  const marker = "/upload/";
+  const at = url.indexOf(marker);
+  if (at === -1) return url;
+  const head = url.slice(0, at + marker.length);
+  return `${head}${transformation}/${url.slice(head.length)}`;
+}
+
+/** A cropped JPEG, so the renderer never has to decode webp/avif. */
+export function cloudinaryJpegUrl(url: string, width: number, height: number): string {
+  return cloudinaryTransform(url, `f_jpg,c_fill,w_${width},h_${height}`);
+}
