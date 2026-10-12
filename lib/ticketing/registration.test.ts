@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { decideRegistration, emailKindFor, isUniqueViolation } from "./registration";
+import { decideRegistration, emailKindFor, isCodeCollision, isUniqueViolation } from "./registration";
 
 const event = { registrationOpen: true, isCancelled: false, capacity: 10, priceCents: 0, allowSpei: true };
 
@@ -81,5 +81,21 @@ describe("isUniqueViolation", () => {
     expect(isUniqueViolation({ code: "P2025" })).toBe(false);
     expect(isUniqueViolation(new Error("boom"))).toBe(false);
     expect(isUniqueViolation(null)).toBe(false);
+  });
+});
+
+describe("isCodeCollision", () => {
+  it("is true for a P2002 on the code unique or one with unknown target", () => {
+    expect(isCodeCollision({ code: "P2002", meta: { target: ["code"] } })).toBe(true);
+    expect(isCodeCollision({ code: "P2002" })).toBe(true);
+  });
+  it("is false for the (eventId, email) unique, however the driver reports it", () => {
+    expect(isCodeCollision({ code: "P2002", meta: { target: ["eventId", "email"] } })).toBe(false);
+    expect(isCodeCollision({ code: "P2002", message: 'Unique constraint failed on "Ticket_eventId_email_key"' })).toBe(false);
+    expect(isCodeCollision({ code: "P2002", meta: { driverAdapterError: { cause: { constraint: { fields: ["eventId", "email"] } } } } })).toBe(false);
+  });
+  it("is false for other errors", () => {
+    expect(isCodeCollision(new Error("x"))).toBe(false);
+    expect(isCodeCollision(null)).toBe(false);
   });
 });

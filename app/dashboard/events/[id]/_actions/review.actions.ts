@@ -9,7 +9,7 @@ import { getOwnedEvent } from "@/lib/server/guards";
 import { ensureOrderForTicket, lockEvent } from "@/lib/server/orders";
 import { sendOrderEmail, sendTicketEmail } from "@/lib/server/ticket-email";
 import { PRE_ISSUE_STATUSES, canTransitionOrder, planIssuance } from "@/lib/ticketing/order";
-import { isUniqueViolation } from "@/lib/ticketing/registration";
+import { isCodeCollision } from "@/lib/ticketing/registration";
 import { canCancel, resendKindFor, validateRejectReason } from "@/lib/ticketing/review";
 import { createWithUniqueCode, generateDistinctCodes } from "@/lib/ticketing/short-code";
 
@@ -82,9 +82,14 @@ export async function approveOrder(eventId: string, orderId: string): Promise<Re
           });
           if (count !== 1) return null;
 
-          // Legacy pre-issue tickets become the paid ones; only the missing remainder is created.
+          // Tickets older code already moved to PAID/CHECKED_IN count as issued (no duplicates, no
+          // second email); pre-issue ones are flipped; only the missing remainder is created.
+          const alreadyIssued = await tx.ticket.findMany({
+            where: { orderId: order.id, status: { in: ["PAID", "CHECKED_IN"] } },
+            select: { id: true },
+          });
           const preIssue = { orderId: order.id, status: { in: [...PRE_ISSUE_STATUSES] } };
-          const plan = planIssuance(order.quantity, await tx.ticket.count({ where: preIssue }));
+          const plan = planIssuance(order.quantity, await tx.ticket.count({ where: preIssue }), alreadyIssued.length);
           if (plan.flip > 0) {
             await tx.ticket.updateMany({
               where: preIssue,
@@ -99,7 +104,7 @@ export async function approveOrder(eventId: string, orderId: string): Promise<Re
                 .map((code, i) => ({
                   eventId: event.id,
                   orderId: order.id,
-                  seq: plan.flip + i + 1,
+                  seq: alreadyIssued.length + plan.flip + i + 1,
                   code,
                   name: order.name,
                   email: order.email,
@@ -112,13 +117,16 @@ export async function approveOrder(eventId: string, orderId: string): Promise<Re
                 })),
             });
           }
-          return tx.ticket.findMany({
+          const before = new Set(alreadyIssued.map((t) => t.id));
+          const paid = await tx.ticket.findMany({
             where: { orderId: order.id, status: "PAID" },
             orderBy: { seq: "asc" },
             select: { id: true, name: true, email: true, code: true },
           });
+          return paid.filter((t) => !before.has(t.id)); // only newly issued tickets get an email
         }, TX_OPTIONS),
-      isUniqueViolation,
+      // Only a short-code clash is retried; the (eventId, email) unique cannot be fixed by a new code.
+      isCodeCollision,
     );
     if (!issued) return STALE;
 

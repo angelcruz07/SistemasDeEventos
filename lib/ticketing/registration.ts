@@ -65,3 +65,19 @@ export function emailKindFor(status: TicketStatus): "ticket" | "received" | null
 export function isUniqueViolation(error: unknown): boolean {
   return typeof error === "object" && error !== null && (error as { code?: unknown }).code === "P2002";
 }
+
+/**
+ * A P2002 caused by the short code (safe to retry with a new one). The (eventId, email)
+ * unique is NOT a collision: retrying cannot fix it. Unknown targets count as the code.
+ */
+export function isCodeCollision(error: unknown): boolean {
+  if (!isUniqueViolation(error)) return false;
+  let detail = "";
+  try {
+    const e = error as { meta?: unknown; message?: unknown };
+    detail = JSON.stringify(e.meta ?? "") + String(e.message ?? "");
+  } catch {
+    // Unserializable metadata: fall through to "code".
+  }
+  return !/email/i.test(detail);
+}

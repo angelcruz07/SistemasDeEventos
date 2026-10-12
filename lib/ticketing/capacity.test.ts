@@ -5,6 +5,11 @@ describe("heldTotal (D5)", () => {
   it("adds validating order quantities, issued tickets and orderless validating tickets", () => {
     expect(heldTotal({ pendingQuantity: 3, issuedTickets: 4, orphanPendingTickets: 1 })).toBe(8);
   });
+  it("does not double count tickets already issued for a still-validating order", () => {
+    // 1 validating order of qty 1 whose ticket is already PAID: one spot, not two.
+    expect(heldTotal({ pendingQuantity: 1, issuedTickets: 1, orphanPendingTickets: 0, issuedOfPending: 1 })).toBe(1);
+    expect(heldTotal({ pendingQuantity: 3, issuedTickets: 2, orphanPendingTickets: 0, issuedOfPending: 1 })).toBe(4);
+  });
   it("treats an empty aggregate (null sum) as zero", () => {
     expect(heldTotal({ pendingQuantity: null, issuedTickets: 0, orphanPendingTickets: 0 })).toBe(0);
   });

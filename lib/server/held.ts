@@ -9,11 +9,15 @@ type Db = Prisma.TransactionClient | typeof prisma;
  * lock whenever the result gates a write.
  */
 export async function countHeld(db: Db, eventId: string): Promise<number> {
-  const [pending, issuedTickets, orphanPendingTickets] = await Promise.all([
+  const [pending, issuedTickets, orphanPendingTickets, issuedOfPending] = await Promise.all([
     db.order.aggregate({ where: { eventId, status: "PENDING_VALIDATION" }, _sum: { quantity: true } }),
     db.ticket.count({ where: { eventId, status: { in: ["PAID", "CHECKED_IN"] } } }),
     // Tickets written by pre-order code have no order yet; they hold a spot while validating.
     db.ticket.count({ where: { eventId, orderId: null, status: "PENDING_VALIDATION" } }),
+    // Already-issued tickets of a still-validating order (older code approved the ticket first): counted once.
+    db.ticket.count({
+      where: { eventId, status: { in: ["PAID", "CHECKED_IN"] }, order: { status: "PENDING_VALIDATION" } },
+    }),
   ]);
-  return heldTotal({ pendingQuantity: pending._sum.quantity, issuedTickets, orphanPendingTickets });
+  return heldTotal({ pendingQuantity: pending._sum.quantity, issuedTickets, orphanPendingTickets, issuedOfPending });
 }
