@@ -25,7 +25,8 @@ export async function purgeExpiredReceipts(now: Date = new Date()): Promise<numb
   for (let i = 0; i < MAX_BATCHES; i++) {
     const groups = await prisma.receipt.groupBy({
       by: ["ticketId"],
-      where: { bytes: { not: null } },
+      // Expand phase: receipts of new orders have no ticketId; PR2 groups them by orderId.
+      where: { ticketId: { not: null }, bytes: { not: null } },
       having: { id: { _count: { gt: 1 } } },
       orderBy: { ticketId: "asc" },
       take: BATCH_SIZE,
@@ -33,10 +34,12 @@ export async function purgeExpiredReceipts(now: Date = new Date()): Promise<numb
     if (groups.length === 0) break;
 
     const rows = await prisma.receipt.findMany({
-      where: { ticketId: { in: groups.map((g) => g.ticketId) } },
+      where: { ticketId: { in: groups.flatMap((g) => (g.ticketId === null ? [] : [g.ticketId])) } },
       select: { id: true, ticketId: true, uploadedAt: true, purgedAt: true },
     });
-    const ids = selectSuperseded(rows.map((r) => ({ ...r, purged: r.purgedAt !== null })));
+    const ids = selectSuperseded(
+      rows.flatMap((r) => (r.ticketId === null ? [] : [{ ...r, ticketId: r.ticketId, purged: r.purgedAt !== null }])),
+    );
     if (ids.length === 0) break;
 
     const result = await prisma.receipt.updateMany({

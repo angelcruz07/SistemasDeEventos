@@ -71,6 +71,14 @@ enum TicketStatus {
   CANCELLED
 }
 
+enum OrderStatus {
+  PENDING_RECEIPT
+  PENDING_VALIDATION
+  PAID
+  REJECTED
+  CANCELLED
+}
+
 enum PaymentMethod {
   SPEI
   CASH
@@ -104,8 +112,9 @@ model Event {
   formSchema       Json    @default("{\"version\":1,\"fields\":[]}")
   ticketDesign     Json    @default("{}")
 
-  user       User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user       User         @relation(fields: [userId], references: [id], onDelete: Cascade)
   tickets    Ticket[]
+  orders     Order[]
   doorAccess DoorAccess?
   images     EventImage[]
 }
@@ -122,9 +131,40 @@ model EventImage {
   @@index([eventId, position])
 }
 
+// A purchase: owns buyer, quantity, money, payment status and receipts.
+// Expand phase: legacy tickets are backfilled 1:1 (Order.id = Ticket.id).
+model Order {
+  id                      String        @id @default(uuid())
+  eventId                 String
+  code                    String        @unique
+  name                    String
+  email                   String? // lowercased; null only for door walk-ins
+  answers                 Json          @default("{}")
+  quantity                Int
+  unitPriceCents          Int
+  amountCents             Int
+  currency                String        @default("MXN")
+  paymentMethod           PaymentMethod
+  status                  OrderStatus
+  rejectionReason         String?
+  reviewedAt              DateTime?
+  registrationEmailSentAt DateTime?
+  createdAt               DateTime      @default(now())
+  updatedAt               DateTime      @updatedAt
+
+  event    Event     @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  tickets  Ticket[]
+  receipts Receipt[]
+
+  @@index([eventId, status])
+  @@index([eventId, email])
+}
+
 model Ticket {
   id                      String        @id @default(uuid())
   eventId                 String
+  orderId                 String? // expand phase: nullable until the contract migration
+  seq                     Int           @default(1)
   code                    String        @unique // Crockford, 6 chars, shown "7K3-Q9M"
   name                    String
   email                   String? // lowercased; null only for door walk-ins
@@ -143,16 +183,19 @@ model Ticket {
   updatedAt               DateTime      @updatedAt
 
   event    Event     @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  order    Order?    @relation(fields: [orderId], references: [id], onDelete: Cascade)
   receipts Receipt[]
 
   @@unique([eventId, email]) // NULLs are distinct in Postgres
   @@index([eventId, status])
+  @@index([orderId])
 }
 
 // 1:N keeps rejected-upload history
 model Receipt {
   id         String    @id @default(uuid())
-  ticketId   String
+  ticketId   String? // expand phase: optional, replaced by orderId in the contract migration
+  orderId    String? // expand phase: nullable until the contract migration
   bytes      Bytes? // null after purge
   mimeType   String
   sizeBytes  Int
@@ -160,9 +203,11 @@ model Receipt {
   uploadedAt DateTime  @default(now())
   purgedAt   DateTime?
 
-  ticket Ticket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  ticket Ticket? @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  order  Order?  @relation(fields: [orderId], references: [id], onDelete: Cascade)
 
   @@index([ticketId, uploadedAt])
+  @@index([orderId, uploadedAt])
 }
 
 model RateLimitBucket {
