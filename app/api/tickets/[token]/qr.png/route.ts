@@ -22,8 +22,11 @@ export async function GET(request: Request, { params }: { params: Promise<{ toke
   if (!ticket || (ticket.status !== "PAID" && ticket.status !== "CHECKED_IN")) return notFound();
 
   const png = await QRCode.toBuffer(token, { type: "png", errorCorrectionLevel: "M", margin: 2, width: 512 });
+  // ?download=1 turns the image into an attachment; the filename comes only from the ticket code.
+  const download = new URL(request.url).searchParams.get("download") === "1";
   return new Response(new Uint8Array(png), {
     headers: {
+      ...(download && { "Content-Disposition": `attachment; filename="${qrFilename(ticket.code)}"` }),
       "Content-Type": "image/png",
       "Cache-Control": "private, no-store",
       "X-Content-Type-Options": "nosniff",
