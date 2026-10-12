@@ -1,6 +1,7 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 
 const TICKET_PURPOSE = "ticket:v1:";
+const ORDER_PURPOSE = "order:v1:";
 const DOOR_PURPOSE = "door:v1:";
 const MIN_SECRET_LENGTH = 32;
 const B64URL_RE = /^[A-Za-z0-9_-]+$/;
@@ -44,12 +45,12 @@ function split(token: string): [string, string] | null {
   return [parts[0], parts[1]];
 }
 
-export function signTicketToken(ticketId: string, secret: string): string {
+function signId(purpose: string, id: string, secret: string): string {
   assertSecret(secret);
-  return `${b64(ticketId)}.${mac(secret, TICKET_PURPOSE, ticketId).toString("base64url")}`;
+  return `${b64(id)}.${mac(secret, purpose, id).toString("base64url")}`;
 }
 
-export function verifyTicketToken(token: string, secret: string): string | null {
+function verifyId(purpose: string, token: string, secret: string): string | null {
   assertSecret(secret);
   const parts = split(token);
   if (!parts) return null;
@@ -57,8 +58,19 @@ export function verifyTicketToken(token: string, secret: string): string | null 
   if (!idBytes) return null;
   const id = idBytes.toString("utf8");
   if (!id || b64(id) !== parts[0]) return null;
-  return signatureMatches(mac(secret, TICKET_PURPOSE, id), parts[1]) ? id : null;
+  return signatureMatches(mac(secret, purpose, id), parts[1]) ? id : null;
 }
+
+export const signTicketToken = (ticketId: string, secret: string): string => signId(TICKET_PURPOSE, ticketId, secret);
+
+export const verifyTicketToken = (token: string, secret: string): string | null =>
+  verifyId(TICKET_PURPOSE, token, secret);
+
+/** Buyer-facing order link token; the purpose prefix keeps it distinct from ticket and door tokens. */
+export const signOrderToken = (orderId: string, secret: string): string => signId(ORDER_PURPOSE, orderId, secret);
+
+export const verifyOrderToken = (token: string, secret: string): string | null =>
+  verifyId(ORDER_PURPOSE, token, secret);
 
 export function signDoorSession(payload: DoorSessionPayload, secret: string): string {
   assertSecret(secret);

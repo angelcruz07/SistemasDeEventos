@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
   signDoorSession,
+  signOrderToken,
   signTicketToken,
   verifyDoorSession,
+  verifyOrderToken,
   verifyTicketToken,
   type DoorSessionPayload,
 } from "./token";
@@ -56,6 +58,37 @@ describe("ticket token", () => {
 
   it("does not accept a door session token", () => {
     expect(verifyTicketToken(signDoorSession(session, SECRET), SECRET)).toBeNull();
+  });
+});
+
+describe("order token", () => {
+  it("round-trips the order id", () => {
+    expect(verifyOrderToken(signOrderToken("order-1", SECRET), SECRET)).toBe("order-1");
+  });
+  it("is deterministic and URL safe", () => {
+    expect(signOrderToken("a", SECRET)).toBe(signOrderToken("a", SECRET));
+    expect(signOrderToken("a-b_c", SECRET)).toMatch(/^[A-Za-z0-9_-]+.[A-Za-z0-9_-]+$/);
+  });
+  it("is not interchangeable with a ticket token", () => {
+    expect(signOrderToken("a", SECRET)).not.toBe(signTicketToken("a", SECRET));
+    expect(verifyOrderToken(signTicketToken("a", SECRET), SECRET)).toBeNull();
+    expect(verifyTicketToken(signOrderToken("a", SECRET), SECRET)).toBeNull();
+  });
+  it("does not accept a door session token", () => {
+    expect(verifyOrderToken(signDoorSession(session, SECRET), SECRET)).toBeNull();
+    expect(verifyDoorSession(signOrderToken("a", SECRET), SECRET, NOW)).toBeNull();
+  });
+  it("rejects a wrong secret, tampering and malformed input", () => {
+    const token = signOrderToken("a", SECRET);
+    expect(verifyOrderToken(token, OTHER)).toBeNull();
+    expect(verifyOrderToken(token.slice(0, -2), SECRET)).toBeNull();
+    const [, sig] = token.split(".");
+    expect(verifyOrderToken(`${Buffer.from("b").toString("base64url")}.${sig}`, SECRET)).toBeNull();
+    for (const bad of ["", ".", "abc", "a.b.c", "!!.!!"]) expect(verifyOrderToken(bad, SECRET)).toBeNull();
+  });
+  it("throws on a short secret", () => {
+    expect(() => signOrderToken("a", "x".repeat(31))).toThrow();
+    expect(() => verifyOrderToken("a.b", "x".repeat(31))).toThrow();
   });
 });
 
