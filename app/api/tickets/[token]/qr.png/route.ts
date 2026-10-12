@@ -1,6 +1,7 @@
 import QRCode from "qrcode";
 import prisma from "@/app/lib/prisma";
 import { getTicketingEnv } from "@/lib/env";
+import { qrFilename } from "@/lib/ticketing/flyer";
 import { verifyTicketToken } from "@/lib/ticketing/token";
 
 export const runtime = "nodejs";
@@ -12,12 +13,12 @@ const notFound = () => new Response("Not found", { status: 404, headers: { "Cach
  * value as in /ticket/{token}); door staff verify it with verifyTicketToken and
  * check-in still requires status PAID, so a leaked image of an unpaid ticket is useless.
  */
-export async function GET(_request: Request, { params }: { params: Promise<{ token: string }> }) {
+export async function GET(request: Request, { params }: { params: Promise<{ token: string }> }) {
   const { token } = await params;
   const ticketId = verifyTicketToken(token, getTicketingEnv().signingSecret);
   if (!ticketId) return notFound();
 
-  const ticket = await prisma.ticket.findUnique({ where: { id: ticketId }, select: { status: true } });
+  const ticket = await prisma.ticket.findUnique({ where: { id: ticketId }, select: { status: true, code: true } });
   if (!ticket || (ticket.status !== "PAID" && ticket.status !== "CHECKED_IN")) return notFound();
 
   const png = await QRCode.toBuffer(token, { type: "png", errorCorrectionLevel: "M", margin: 2, width: 512 });
