@@ -102,10 +102,12 @@ function ImageField({
 export function DesignEditor({
   eventId,
   eventTitle,
+  slug,
   initial,
 }: {
   eventId: string;
   eventTitle: string;
+  slug: string;
   initial: TicketDesign;
 }) {
   const [design, setDesign] = useState(initial);
@@ -146,8 +148,18 @@ export function DesignEditor({
     <div className="grid gap-6 lg:grid-cols-2">
       <Card>
         <CardHeader>
-          <CardTitle>Diseño del boleto</CardTitle>
-          <CardDescription>Personaliza cómo ven el boleto tus asistentes y el PDF que descargan.</CardDescription>
+          <CardTitle>Diseño del evento</CardTitle>
+          <CardDescription>
+            Estos colores, logo e imagen se aplican a la página del evento, al boleto y al PDF que descargan tus asistentes.{" "}
+            <a
+              href={`/event/${encodeURIComponent(slug)}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="font-medium underline underline-offset-4"
+            >
+              Ver página del evento
+            </a>
+          </CardDescription>
         </CardHeader>
         <CardContent className="space-y-5">
           <fieldset className="space-y-2">

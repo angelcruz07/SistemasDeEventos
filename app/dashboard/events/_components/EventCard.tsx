@@ -100,7 +100,7 @@ export function EventCard({ event, onEdit, onDelete, onShowQr }: EventCardProps)
         </div>
         <CardHeader className="pb-2 px-4 sm:px-6 pt-3 sm:pt-4">
           <CardTitle className="text-sm sm:text-base line-clamp-2 group-hover:text-primary transition-colors">{event.title}</CardTitle>
-          <CardDescription className="line-clamp-2 text-xs sm:text-sm">{event.description}</CardDescription>
+          <CardDescription className="line-clamp-2 whitespace-pre-line text-xs sm:text-sm">{event.description}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-1.5 sm:space-y-2 text-xs sm:text-sm px-4 sm:px-6">
           <div className="flex items-center gap-2 text-muted-foreground min-w-0">

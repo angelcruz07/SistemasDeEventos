@@ -7,6 +7,7 @@ import { revalidatePath } from "next/cache";
 import { HOLDING_STATUSES } from "@/lib/ticketing/capacity";
 import { parseFormSchema } from "@/lib/ticketing/form-schema";
 import { registrationAvailability } from "@/lib/ticketing/registration";
+import { parseTicketDesign } from "@/lib/ticketing/ticket-design";
 import { normalizeEventImages } from "@/lib/ticketing/event-images";
 import { IMAGES_INCLUDE } from "../interfaces/event.interface";
 
@@ -251,6 +252,7 @@ export async function getEventBySlug(slug: string) {
         formSchema: true,
         registrationOpen: true,
         allowSpei: true,
+        ticketDesign: true,
         // Used only to derive `availability`; never returned.
         capacity: true,
       },
@@ -275,6 +277,8 @@ export async function getEventBySlug(slug: string) {
         priceCents: event.priceCents,
         displayCapacity: event.displayCapacity,
         formSchema: parseFormSchema(event.formSchema) ?? { version: 1 as const, fields: [] },
+        // Only the parsed, sanitized design leaves the server; the raw JSON never does.
+        design: parseTicketDesign(event.ticketDesign, process.env.CLOUDINARY_CLOUD_NAME),
         availability: availability.open ? ("open" as const) : availability.reason,
       },
     };

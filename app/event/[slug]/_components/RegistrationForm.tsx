@@ -89,10 +89,13 @@ export function RegistrationForm({
   slug,
   schema,
   priceLabel,
+  accent,
 }: {
   slug: string;
   schema: FormSchema;
   priceLabel: string;
+  /** Organizer accent for the submit button (already contrast-checked). */
+  accent?: { background: string; color: string };
 }) {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -168,7 +171,12 @@ export function RegistrationForm({
         </p>
       )}
 
-      <Button type="submit" className="w-full min-h-10" disabled={submitting}>
+      <Button
+        type="submit"
+        className="w-full min-h-10"
+        disabled={submitting}
+        style={accent ? { backgroundColor: accent.background, color: accent.color } : undefined}
+      >
         {submitting && <Loader2 className="size-4 animate-spin" />}
         Registrarme
       </Button>

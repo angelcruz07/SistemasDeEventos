@@ -64,7 +64,7 @@ export function TicketCard({ design, eventTitle, attendeeName, code, checkedIn, 
             QR
           </div>
         )}
-        {design.footerText && <p className="text-sm break-words opacity-80">{design.footerText}</p>}
+        {design.footerText && <p className="text-sm break-words whitespace-pre-line opacity-80">{design.footerText}</p>}
       </div>
     </section>
   );
