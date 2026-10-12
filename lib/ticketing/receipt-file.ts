@@ -1,4 +1,5 @@
-export const MAX_RECEIPT_BYTES = 5 * 1024 * 1024;
+// 4 MiB keeps the whole multipart request under Vercel's 4.5 MB body limit.
+export const MAX_RECEIPT_BYTES = 4 * 1024 * 1024;
 
 export type ReceiptMime = "image/jpeg" | "image/png" | "image/webp" | "application/pdf";
 

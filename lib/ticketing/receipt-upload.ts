@@ -3,7 +3,7 @@ import { hasSpot } from "./capacity";
 import { MAX_RECEIPT_BYTES } from "./receipt-file";
 
 /** Receipt limit plus multipart overhead; anything larger is refused before reading the body. */
-export const MAX_REQUEST_BYTES = MAX_RECEIPT_BYTES + 512 * 1024;
+export const MAX_REQUEST_BYTES = MAX_RECEIPT_BYTES + 256 * 1024;
 
 /** A missing Content-Length is allowed here (the real size is enforced after reading); a malformed one is not. */
 export function isBodyTooLarge(contentLength: string | null): boolean {

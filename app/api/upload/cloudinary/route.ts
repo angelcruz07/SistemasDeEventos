@@ -2,7 +2,8 @@ import { NextResponse } from "next/server";
 import { v2 as cloudinary } from "cloudinary";
 import { getSession } from "@/lib/auth-server";
 
-const MAX_SIZE_MB = 5;
+// Stays under Vercel's 4.5 MB request body limit.
+const MAX_SIZE_MB = 4;
 const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"];
 
 function getCloudinaryConfig() {

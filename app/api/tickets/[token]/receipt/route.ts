@@ -30,7 +30,7 @@ const REFUSALS: Record<UploadRefusal, { error: string; status: number }> = {
 };
 const FILE_ERRORS = {
   empty: "El archivo está vacío.",
-  size: "El archivo supera el límite de 5 MB.",
+  size: "El archivo supera el límite de 4 MB.",
   type: "Formato no válido. Sube una imagen (JPG, PNG, WebP) o un PDF.",
 } as const;
 

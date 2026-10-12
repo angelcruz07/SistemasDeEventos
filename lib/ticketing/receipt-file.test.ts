@@ -35,8 +35,8 @@ describe("validateReceiptFile", () => {
   it("rejects empty files", () => {
     expect(validateReceiptFile(new Uint8Array())).toEqual({ ok: false, error: "empty" });
   });
-  it("enforces 5 MiB inclusive", () => {
-    expect(MAX_RECEIPT_BYTES).toBe(5 * 1024 * 1024);
+  it("enforces 4 MiB inclusive", () => {
+    expect(MAX_RECEIPT_BYTES).toBe(4 * 1024 * 1024);
     const atLimit = new Uint8Array(MAX_RECEIPT_BYTES);
     atLimit.set(PNG);
     expect(validateReceiptFile(atLimit).ok).toBe(true);

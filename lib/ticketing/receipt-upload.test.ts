@@ -31,6 +31,8 @@ describe("decideReceiptUpload", () => {
 describe("isBodyTooLarge", () => {
   it("allows missing or small lengths and rejects above the limit", () => {
     expect(isBodyTooLarge(null)).toBe(false);
+    // Vercel rejects request bodies over 4.5 MB before our code runs.
+    expect(MAX_REQUEST_BYTES).toBeLessThan(4_500_000);
     expect(isBodyTooLarge(String(MAX_REQUEST_BYTES))).toBe(false);
     expect(isBodyTooLarge(String(MAX_REQUEST_BYTES + 1))).toBe(true);
   });

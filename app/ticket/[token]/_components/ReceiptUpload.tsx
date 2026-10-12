@@ -6,7 +6,7 @@ import { AlertCircle, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 
-const MAX_BYTES = 5 * 1024 * 1024;
+const MAX_BYTES = 4 * 1024 * 1024;
 const ALLOWED = ["image/jpeg", "image/png", "image/webp", "application/pdf"];
 
 /** Client pre-check is a convenience only; the server re-validates size and real file type. */
@@ -20,7 +20,7 @@ export function ReceiptUpload({ token, rejectionReason }: { token: string; rejec
     setError(null);
     if (selected && selected.size > MAX_BYTES) {
       setFile(null);
-      setError("El archivo supera el límite de 5 MB.");
+      setError("El archivo supera el límite de 4 MB.");
       return;
     }
     if (selected && selected.type && !ALLOWED.includes(selected.type)) {
@@ -63,7 +63,7 @@ export function ReceiptUpload({ token, rejectionReason }: { token: string; rejec
         </div>
       )}
       <div className="space-y-1.5">
-        <Label htmlFor="receipt-file">Comprobante de pago (imagen o PDF, máx. 5 MB)</Label>
+        <Label htmlFor="receipt-file">Comprobante de pago (imagen o PDF, máx. 4 MB)</Label>
         <input
           id="receipt-file"
           type="file"

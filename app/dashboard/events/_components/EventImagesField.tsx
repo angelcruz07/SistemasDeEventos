@@ -74,7 +74,7 @@ export function EventImagesField({ images, onChange }: EventImagesFieldProps) {
           </span>
         </label>
         <span className="text-xs text-muted-foreground">
-          JPEG, PNG, WebP o GIF. Máx. 5 MB c/u, hasta {MAX_EVENT_IMAGES}. La primera es la portada.
+          JPEG, PNG, WebP o GIF. Máx. 4 MB c/u, hasta {MAX_EVENT_IMAGES}. La primera es la portada.
         </span>
       </div>
       {error && (
