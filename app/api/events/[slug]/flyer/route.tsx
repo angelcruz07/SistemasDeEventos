@@ -191,7 +191,8 @@ export async function GET(request: Request, { params }: { params: Promise<{ slug
       width,
       height,
       headers: {
-        "Cache-Control": "public, max-age=300",
+        // Let Vercel's CDN serve repeats so the costly render runs rarely.
+        "Cache-Control": "public, max-age=300, s-maxage=3600, stale-while-revalidate=86400",
         "X-Content-Type-Options": "nosniff",
         ...(searchParams.get("download") === "1" && {
           "Content-Disposition": `attachment; filename="${flyerFilename(event.slug, format)}"`,
