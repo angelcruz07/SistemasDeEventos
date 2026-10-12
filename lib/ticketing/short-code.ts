@@ -40,3 +40,10 @@ export async function createWithUniqueCode<T>(
   }
   throw new Error("Could not generate a unique ticket code", { cause: last });
 }
+
+/** `count` distinct codes; a repeated draw is skipped so one batch never collides with itself. */
+export function generateDistinctCodes(count: number, randInt: (max: number) => number): string[] {
+  const codes = new Set<string>();
+  while (codes.size < count) codes.add(generateShortCode(randInt));
+  return [...codes];
+}

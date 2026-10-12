@@ -1,4 +1,4 @@
-import type { OrderStatus, PaymentMethod } from "@/app/generated/prisma/enums";
+import type { OrderStatus, PaymentMethod, TicketStatus } from "@/app/generated/prisma/enums";
 import { policyFor } from "./payment";
 import { registrationAvailability, type RegistrationEvent } from "./registration";
 
@@ -121,4 +121,65 @@ export const ORDER_TRANSITIONS: Record<OrderStatus, readonly OrderStatus[]> = {
 
 export function canTransitionOrder(from: OrderStatus, to: OrderStatus): boolean {
   return ORDER_TRANSITIONS[from].includes(to);
+}
+
+/** Ticket statuses that only mirror an unpaid order (D4); approval flips them, it never duplicates them. */
+export const PRE_ISSUE_STATUSES: readonly TicketStatus[] = ["PENDING_RECEIPT", "PENDING_VALIDATION", "REJECTED"];
+
+export interface LegacyTicket {
+  id: string;
+  eventId: string;
+  code: string;
+  name: string;
+  email: string | null;
+  answers: unknown;
+  status: TicketStatus;
+  paymentMethod: PaymentMethod;
+  amountCents: number;
+  currency: string;
+  rejectionReason: string | null;
+  reviewedAt: Date | null;
+  registrationEmailSentAt: Date | null;
+  createdAt: Date;
+}
+
+/**
+ * The Order a ticket written by pre-order code stands for. Mirrors the migration
+ * backfill exactly (Order.id = Ticket.id, same code, quantity 1, CHECKED_IN -> PAID)
+ * so resolving it lazily is indistinguishable from having been backfilled.
+ */
+export function legacyOrderFromTicket(ticket: LegacyTicket) {
+  return {
+    id: ticket.id,
+    eventId: ticket.eventId,
+    code: ticket.code,
+    name: ticket.name,
+    email: ticket.email,
+    answers: ticket.answers,
+    quantity: 1,
+    unitPriceCents: ticket.amountCents,
+    amountCents: ticket.amountCents,
+    currency: ticket.currency,
+    paymentMethod: ticket.paymentMethod,
+    status: (ticket.status === "CHECKED_IN" ? "PAID" : ticket.status) as OrderStatus,
+    rejectionReason: ticket.rejectionReason,
+    reviewedAt: ticket.reviewedAt,
+    registrationEmailSentAt: ticket.registrationEmailSentAt,
+    createdAt: ticket.createdAt,
+  };
+}
+
+/**
+ * Which order a public purchase collides with. An open order wins. Otherwise a ticket
+ * already holding the email (legacy unique, dropped in the contract step) blocks the
+ * purchase unless its order is open.
+ */
+export function resolveExistingOrder(input: {
+  openOrder: { id: string; status: OrderStatus } | null;
+  legacyOrder: { id: string; status: OrderStatus } | null;
+}): { existing: { id: string; status: OrderStatus } | null; emailTaken: boolean } {
+  if (input.openOrder) return { existing: input.openOrder, emailTaken: false };
+  const legacy = input.legacyOrder;
+  if (!legacy) return { existing: null, emailTaken: false };
+  return isOpenOrder(legacy.status) ? { existing: legacy, emailTaken: false } : { existing: null, emailTaken: true };
 }

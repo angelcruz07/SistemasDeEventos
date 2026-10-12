@@ -1,5 +1,14 @@
 import { describe, expect, it } from "vitest";
-import { HOLDING_STATUSES, countHeld, hasRoom, hasSpot, isRegistrationOpen } from "./capacity";
+import { HOLDING_STATUSES, countHeld, hasRoom, hasSpot, heldTotal, isRegistrationOpen } from "./capacity";
+
+describe("heldTotal (D5)", () => {
+  it("adds validating order quantities, issued tickets and orderless validating tickets", () => {
+    expect(heldTotal({ pendingQuantity: 3, issuedTickets: 4, orphanPendingTickets: 1 })).toBe(8);
+  });
+  it("treats an empty aggregate (null sum) as zero", () => {
+    expect(heldTotal({ pendingQuantity: null, issuedTickets: 0, orphanPendingTickets: 0 })).toBe(0);
+  });
+});
 
 describe("HOLDING_STATUSES", () => {
   it("is PENDING_VALIDATION, PAID and CHECKED_IN only", () => {

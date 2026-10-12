@@ -4,6 +4,7 @@ import {
   CODE_LENGTH,
   createWithUniqueCode,
   formatShortCode,
+  generateDistinctCodes,
   generateShortCode,
   normalizeShortCode,
 } from "./short-code";
@@ -93,5 +94,20 @@ describe("createWithUniqueCode", () => {
       ),
     ).rejects.toThrow("boom");
     expect(calls).toBe(1);
+  });
+});
+
+describe("generateDistinctCodes", () => {
+  it("returns the requested number of distinct codes, skipping repeats from the source", () => {
+    const values = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1];
+    let i = 0;
+    const codes = generateDistinctCodes(2, () => values[i++] ?? 2);
+    expect(codes).toHaveLength(2);
+    expect(new Set(codes).size).toBe(2);
+    expect(codes[0]).toBe("000000");
+    expect(codes[1]).toBe("111111");
+  });
+  it("returns an empty list for zero", () => {
+    expect(generateDistinctCodes(0, () => 0)).toEqual([]);
   });
 });

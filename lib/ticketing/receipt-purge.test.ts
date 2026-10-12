@@ -1,12 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { RETENTION_DAYS, eventExpiryCutoff, selectSuperseded, shouldRunPurge } from "./receipt-purge";
+import { RETENTION_DAYS, eventExpiryCutoff, receiptGroupKey, selectSuperseded, shouldRunPurge } from "./receipt-purge";
 
 const DAY = 24 * 60 * 60 * 1000;
 const now = new Date("2026-10-08T12:00:00Z");
 
 const r = (id: string, ticketId: string, uploadedAt: string, purged = false) => ({
   id,
-  ticketId,
+  groupId: ticketId,
   uploadedAt: new Date(uploadedAt),
   purged,
 });
@@ -56,5 +56,22 @@ describe("shouldRunPurge", () => {
   it("skips inside the interval and runs after it", () => {
     expect(shouldRunPurge(new Date(now.getTime() - interval + 1), now, interval)).toBe(false);
     expect(shouldRunPurge(new Date(now.getTime() - interval), now, interval)).toBe(true);
+  });
+});
+
+describe("receiptGroupKey", () => {
+  it("groups by order when the receipt has one, else by its legacy ticket", () => {
+    expect(receiptGroupKey({ orderId: "o1", ticketId: "t1" })).toBe("o1");
+    expect(receiptGroupKey({ orderId: null, ticketId: "t1" })).toBe("t1");
+  });
+  it("is null for an unlinked receipt so it is never grouped", () => {
+    expect(receiptGroupKey({ orderId: null, ticketId: null })).toBeNull();
+  });
+});
+
+describe("selectSuperseded across a dual-linked order", () => {
+  it("keeps only the latest receipt of an order regardless of the ticket link", () => {
+    const rows = [r("old", "o1", "2026-10-01T00:00:00Z"), r("new", "o1", "2026-10-02T00:00:00Z")];
+    expect(selectSuperseded(rows)).toEqual(["old"]);
   });
 });

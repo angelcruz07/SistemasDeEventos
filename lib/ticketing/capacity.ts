@@ -31,3 +31,16 @@ export function isRegistrationOpen(
   if (!hasSpot(held, event.capacity)) return { open: false, reason: "full" };
   return { open: true };
 }
+
+/**
+ * Spots held (design D5): validating orders hold their quantity, issued tickets hold
+ * one each, and an orderless legacy ticket (written by pre-order code) that is
+ * validating holds one. Legacy pre-issue tickets that have an order count only through it.
+ */
+export function heldTotal(input: {
+  pendingQuantity: number | null;
+  issuedTickets: number;
+  orphanPendingTickets: number;
+}): number {
+  return (input.pendingQuantity ?? 0) + input.issuedTickets + input.orphanPendingTickets;
+}

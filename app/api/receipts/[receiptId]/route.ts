@@ -13,7 +13,13 @@ export async function GET(_request: Request, { params }: { params: Promise<{ rec
   if (!session) return notFound();
 
   const receipt = await prisma.receipt.findFirst({
-    where: { id: receiptId, ticket: { event: { userId: session.user.id } } },
+    where: {
+      id: receiptId,
+      OR: [
+        { order: { event: { userId: session.user.id } } },
+        { ticket: { event: { userId: session.user.id } } },
+      ],
+    },
     select: { bytes: true, mimeType: true },
   });
   if (!receipt) return notFound();
