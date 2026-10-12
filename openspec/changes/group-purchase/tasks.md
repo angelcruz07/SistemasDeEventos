@@ -16,12 +16,12 @@ Chained PRs recommended: Yes
 Verify: `migrate deploy` on a DB copy, parity check, app unchanged.
 
 ## PR2 — Order-aware write path, quantity fixed at 1 (~400)
-- [ ] 2.1 `lib/server/held.ts` `countHeld` (D5). Use it in registration, upload, `event.actions.ts`, dashboard counts.
-- [ ] 2.2 `registration.actions.ts`: create an Order (free → PAID + tickets in the same tx). Dedupe by open order under the lock. Stop using `eventId_email`.
-- [ ] 2.3 `app/api/orders/[token]/receipt/route.ts` shared core. Turn `app/api/tickets/[token]/receipt` into an adapter.
-- [ ] 2.4 `review.actions.ts`: `approveOrder` (lock, conditional update, `planIssuance`, `createMany` with retry), `rejectOrder`, `cancelOrder`, `resendOrder`. The old ticket-id actions resolve to the order (UI unchanged). Keep ticket-level cancel.
-- [ ] 2.5 `ticket-email.ts`: the order "received" email uses the order amount, order code and `/order/[token]`. Ticket emails are per ticket.
-- [ ] 2.6 Door walk-in creates Order + Ticket. Receipt purge groups by `orderId`.
+- [x] 2.1 `lib/server/held.ts` `countHeld` (D5). Use it in registration, upload, `event.actions.ts`, dashboard counts.
+- [x] 2.2 `registration.actions.ts`: create an Order (free → PAID + tickets in the same tx). Dedupe by open order under the lock. Stop using `eventId_email`.
+- [x] 2.3 `app/api/orders/[token]/receipt/route.ts` shared core. Turn `app/api/tickets/[token]/receipt` into an adapter.
+- [x] 2.4 `review.actions.ts`: `approveOrder` (lock, conditional update, `planIssuance`, `createMany` with retry), `rejectOrder`, `cancelOrder`, `resendOrder`. The old ticket-id actions resolve to the order (UI unchanged). Keep ticket-level cancel.
+- [x] 2.5 `ticket-email.ts`: the order "received" email uses the order amount, order code and `/order/[token]`. Ticket emails are per ticket.
+- [x] 2.6 Door walk-in creates Order + Ticket. Receipt purge groups by `orderId`.
 Verify: full suite + manual run on a DB copy (legacy pending link → upload → approve).
 
 ## PR3 — Contract migration (~60), deploy right after PR2
@@ -40,7 +40,7 @@ Verify: no NULL `orderId`. Rollback is forward-fix only from here.
 - [ ] 5.3 TDD CSV: one row per ticket (order code, n/N, unit amount), plus one row per order that has no tickets yet.
 
 ## Carry-over from PR1 review (must address)
-- PR2: receipt purge branch (a) must also cover receipts linked only by `orderId` (expired events), not just `ticket.event`.
-- PR2: cancel must never hard-delete an Order (FKs cascade to tickets and receipts).
+- [x] PR2: receipt purge branch (a) must also cover receipts linked only by `orderId` (expired events), not just `ticket.event`.
+- [x] PR2: cancel must never hard-delete an Order (FKs cascade to tickets and receipts).
 - PR3: the backfill re-run must also SYNC mutable fields of already-backfilled orders from their legacy ticket (status, rejectionReason, reviewedAt) via `ON CONFLICT (id) DO UPDATE` or a drift-sync UPDATE, because the old deployed code keeps changing tickets only. Run the README parity check before and after.
 - Rollback script: receipts of multi-ticket orders stay with null `ticketId`; repoint them to the order's first ticket or list them for manual review.
