@@ -79,20 +79,32 @@ export function ImageCarousel({ images, alt }: ImageCarouselProps) {
       }}
       onTouchEnd={(e) => onTouchEnd(e.changedTouches[0]?.clientX ?? 0)}
     >
+      {/* Posters are shown whole (object-contain) over a blurred, darkened copy so the fixed aspect box never crops them. */}
       {images.map((url, i) => (
-        <Image
+        <div
           key={url}
-          src={url}
-          alt={i === current ? alt : ""}
           aria-hidden={i !== current}
-          fill
-          sizes="(min-width: 768px) 560px, 100vw"
-          priority={i === 0}
           className={cn(
-            "object-cover transition-opacity duration-500 motion-reduce:transition-none",
+            "absolute inset-0 transition-opacity duration-500 motion-reduce:transition-none",
             i === current ? "opacity-100" : "opacity-0"
           )}
-        />
+        >
+          <Image
+            src={url}
+            alt=""
+            fill
+            sizes="(min-width: 768px) 560px, 100vw"
+            className="scale-110 object-cover blur-2xl brightness-50"
+          />
+          <Image
+            src={url}
+            alt={i === current ? alt : ""}
+            fill
+            sizes="(min-width: 768px) 560px, 100vw"
+            priority={i === 0}
+            className="object-contain"
+          />
+        </div>
       ))}
 
       {count > 1 && (

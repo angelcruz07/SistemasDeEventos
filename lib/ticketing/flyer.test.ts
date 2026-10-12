@@ -41,9 +41,9 @@ describe("filenames", () => {
 });
 
 describe("cloudinaryJpegUrl", () => {
-  it("inserts a JPEG, sized transformation after /upload/", () => {
+  it("fits the whole image over a blurred JPEG backdrop", () => {
     expect(cloudinaryJpegUrl("https://res.cloudinary.com/demo/image/upload/v1/a/b.webp", 1080, 640)).toBe(
-      "https://res.cloudinary.com/demo/image/upload/f_jpg,c_fill,w_1080,h_640/v1/a/b.webp",
+      "https://res.cloudinary.com/demo/image/upload/f_jpg,c_pad,b_blurred:400:15,w_1080,h_640/v1/a/b.webp",
     );
   });
   it("leaves URLs without an /upload/ segment untouched", () => {

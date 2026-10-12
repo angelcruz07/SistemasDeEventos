@@ -350,11 +350,13 @@ export function EventForm({ event, onSuccess, onCancel, variant = "card", formId
             </div>
             <div className="space-y-2">
               <Label htmlFor={id(formIdPrefix, "description")}>Descripción</Label>
-              <Input
+              <textarea
                 id={id(formIdPrefix, "description")}
                 placeholder="Breve descripción del evento"
                 value={formData.description}
                 onChange={(e) => handleChange("description", e.target.value)}
+                rows={5}
+                className={textareaBase}
               />
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

@@ -50,7 +50,7 @@ export function cloudinaryTransform(url: string, transformation: string): string
   return `${head}${transformation}/${url.slice(head.length)}`;
 }
 
-/** A cropped JPEG, so the renderer never has to decode webp/avif. */
+/** The whole image as a JPEG (never cropped; posters keep their edges) over a blurred backdrop. */
 export function cloudinaryJpegUrl(url: string, width: number, height: number): string {
-  return cloudinaryTransform(url, `f_jpg,c_fill,w_${width},h_${height}`);
+  return cloudinaryTransform(url, `f_jpg,c_pad,b_blurred:400:15,w_${width},h_${height}`);
 }

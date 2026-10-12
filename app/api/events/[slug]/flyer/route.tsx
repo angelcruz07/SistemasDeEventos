@@ -119,7 +119,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ slug
               style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%", objectFit: "cover" }}
             />
           )}
-          {logo && (
+          {logo ? (
             <div
               style={{
                 position: "absolute",
@@ -133,7 +133,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ slug
             >
               <img src={logo} alt="" style={{ maxHeight: 80, maxWidth: 240, objectFit: "contain" }} />
             </div>
-          )}
+          ) : null}
         </div>
 
         <div style={{ display: "flex", flexDirection: "column", padding: "48px 56px 56px", gap: 32 }}>
