@@ -148,6 +148,7 @@ model Order {
   status                  OrderStatus
   rejectionReason         String?
   reviewedAt              DateTime?
+  paidAt                  DateTime? // first time the order became PAID; never cleared (cancel does not refund)
   registrationEmailSentAt DateTime?
   createdAt               DateTime      @default(now())
   updatedAt               DateTime      @updatedAt
