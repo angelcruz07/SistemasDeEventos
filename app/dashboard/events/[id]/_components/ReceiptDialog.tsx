@@ -4,8 +4,8 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { MAX_REASON_LENGTH } from "@/lib/ticketing/review";
-import { approveTicket, rejectTicket } from "../_actions/review.actions";
-import type { AttendeeRow } from "./AttendeesList";
+import type { OrderRow } from "@/lib/ticketing/attendee-rows";
+import { approveOrder, rejectOrder } from "../_actions/review.actions";
 
 export function ReceiptDialog({
   eventId,
@@ -13,7 +13,7 @@ export function ReceiptDialog({
   onClose,
 }: {
   eventId: string;
-  row: AttendeeRow;
+  row: OrderRow;
   onClose: () => void;
 }) {
   const router = useRouter();
@@ -22,7 +22,7 @@ export function ReceiptDialog({
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  async function submit(action: () => ReturnType<typeof approveTicket>) {
+  async function submit(action: () => ReturnType<typeof approveOrder>) {
     setPending(true);
     setError(null);
     const result = await action();
@@ -55,6 +55,10 @@ export function ReceiptDialog({
           </h2>
           <p className="text-sm text-muted-foreground">
             {row.name} · <span className="font-mono">{row.code}</span>
+          </p>
+          <p className="mt-1 text-sm">
+            {row.quantity} {row.quantity === 1 ? "boleto" : "boletos"} · Total a verificar:{" "}
+            <span className="font-semibold">{row.amount}</span>
           </p>
         </div>
 
@@ -108,7 +112,7 @@ export function ReceiptDialog({
             <Button
               variant="destructive"
               disabled={pending || !reason.trim()}
-              onClick={() => submit(() => rejectTicket(eventId, row.id, reason))}
+              onClick={() => submit(() => rejectOrder(eventId, row.id, reason))}
             >
               {pending ? "Rechazando..." : "Confirmar rechazo"}
             </Button>
@@ -117,7 +121,7 @@ export function ReceiptDialog({
               <Button variant="destructive" disabled={pending} onClick={() => setRejecting(true)}>
                 Rechazar
               </Button>
-              <Button disabled={pending} onClick={() => submit(() => approveTicket(eventId, row.id))}>
+              <Button disabled={pending} onClick={() => submit(() => approveOrder(eventId, row.id))}>
                 {pending ? "Aprobando..." : "Aprobar"}
               </Button>
             </>

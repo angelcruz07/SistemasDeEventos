@@ -20,7 +20,7 @@ export function CashUpSummary({ summary, exportHref }: { summary: CashUp; export
     <section className="space-y-2" aria-label="Corte de caja">
       <div className="flex items-center justify-between gap-2">
         <h2 className="text-sm font-medium">
-          Ingresaron {summary.checkedIn} de {summary.paidTotal} pagados
+          Ingresaron {summary.checkedIn} de {summary.paidTotal} boletos pagados
         </h2>
         <a href={exportHref} className="rounded-md border px-3 py-1.5 text-sm hover:bg-accent" download>
           Exportar CSV
@@ -32,6 +32,9 @@ export function CashUpSummary({ summary, exportHref }: { summary: CashUp; export
         <Card label="Gratis" value={String(byMethod.FREE.count)} />
         <Card label="Total cobrado" value={formatted.total} />
       </div>
+      <p className="text-xs text-muted-foreground">
+        El dinero cuenta las compras pagadas completas; cancelar un boleto no genera reembolso.
+      </p>
     </section>
   );
 }

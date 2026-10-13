@@ -1,10 +1,15 @@
-import type { PaymentMethod, TicketStatus } from "@/app/generated/prisma/enums";
+import type { OrderStatus, PaymentMethod, TicketStatus } from "@/app/generated/prisma/enums";
 import { formatMxn } from "./money";
+
+export interface CashUpOrder {
+  paymentMethod: PaymentMethod;
+  status: OrderStatus;
+  amountCents: number;
+}
 
 export interface CashUpTicket {
   paymentMethod: PaymentMethod;
   status: TicketStatus;
-  amountCents: number;
 }
 
 export interface MethodTotal {
@@ -14,12 +19,20 @@ export interface MethodTotal {
 
 const METHODS: readonly PaymentMethod[] = ["SPEI", "CASH", "FREE"];
 
-/** Only PAID and CHECKED_IN tickets count as collected; FREE never adds money. */
-export function computeCashUp(tickets: CashUpTicket[]) {
+/**
+ * Money comes from PAID orders (FREE never adds money); counts come from issued
+ * (PAID/CHECKED_IN) tickets. An order keeps its full amount when some of its tickets are
+ * cancelled later: there are no refunds, so the cash collected does not change.
+ */
+export function computeCashUp(orders: CashUpOrder[], tickets: CashUpTicket[]) {
   const byMethod = Object.fromEntries(METHODS.map((m) => [m, { count: 0, totalCents: 0 }])) as Record<
     PaymentMethod,
     MethodTotal
   >;
+  for (const o of orders) {
+    if (o.status !== "PAID" || o.paymentMethod === "FREE") continue;
+    byMethod[o.paymentMethod].totalCents += o.amountCents;
+  }
   let checkedIn = 0;
   let paidNotIn = 0;
   for (const t of tickets) {
@@ -27,7 +40,6 @@ export function computeCashUp(tickets: CashUpTicket[]) {
     if (t.status === "CHECKED_IN") checkedIn++;
     else paidNotIn++;
     byMethod[t.paymentMethod].count++;
-    byMethod[t.paymentMethod].totalCents += t.paymentMethod === "FREE" ? 0 : t.amountCents;
   }
   const totalCents = METHODS.reduce((sum, m) => sum + byMethod[m].totalCents, 0);
   return {

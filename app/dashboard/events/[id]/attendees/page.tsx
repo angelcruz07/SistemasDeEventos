@@ -1,34 +1,20 @@
 import Link from "next/link";
 import { after } from "next/server";
 import prisma from "@/app/lib/prisma";
-import { formatMx } from "@/lib/datetime";
 import { purgeExpiredReceiptsThrottled } from "@/lib/server/receipts-purge";
 import { requireEventOwner } from "@/lib/server/guards";
 import {
+  ORDER_STATUS_LABELS,
   PAGE_SIZE,
-  STATUS_LABELS,
   buildAttendeeWhere,
   countByStatus,
   parseAttendeeFilter,
 } from "@/lib/ticketing/attendees";
+import { toOrderRow } from "@/lib/ticketing/attendee-rows";
 import { computeCashUp } from "@/lib/ticketing/cash-up";
-import { formatShortCode } from "@/lib/ticketing/short-code";
-import { TICKET_STATUSES } from "@/lib/ticketing/status";
+import { ORDER_STATUSES } from "@/lib/ticketing/order";
 import { CashUpSummary } from "../_components/CashUpSummary";
-import { AttendeesList, type AttendeeRow } from "../_components/AttendeesList";
-
-function describeAnswer(value: unknown): string {
-  if (Array.isArray(value)) return value.map(String).join(", ");
-  if (typeof value === "boolean") return value ? "Sí" : "No";
-  return value === null || value === undefined ? "" : String(value);
-}
-
-function toAnswerEntries(answers: unknown): Array<{ label: string; value: string }> {
-  if (typeof answers !== "object" || answers === null) return [];
-  return Object.values(answers as Record<string, { label?: unknown; value?: unknown }>)
-    .filter((a) => a && typeof a.label === "string")
-    .map((a) => ({ label: a.label as string, value: describeAnswer(a.value) }));
-}
+import { AttendeesList } from "../_components/AttendeesList";
 
 export default async function AttendeesPage({
   params,
@@ -45,14 +31,19 @@ export default async function AttendeesPage({
   after(() => purgeExpiredReceiptsThrottled().catch((e) => console.error("Receipt purge failed:", e?.name ?? "unknown")));
 
   const where = buildAttendeeWhere(event.id, filter);
-  const [groups, total, paidTickets, tickets] = await Promise.all([
-    prisma.ticket.groupBy({ by: ["status"], where: { eventId: event.id }, _count: { _all: true } }),
-    prisma.ticket.count({ where }),
-    prisma.ticket.findMany({
-      where: { eventId: event.id, status: { in: ["PAID", "CHECKED_IN"] } },
+  const [groups, total, paidOrders, issuedTickets, orders] = await Promise.all([
+    prisma.order.groupBy({ by: ["status"], where: { eventId: event.id }, _count: { _all: true } }),
+    prisma.order.count({ where }),
+    // Cash-up money comes from PAID orders only.
+    prisma.order.findMany({
+      where: { eventId: event.id, status: "PAID" },
       select: { paymentMethod: true, status: true, amountCents: true },
     }),
     prisma.ticket.findMany({
+      where: { eventId: event.id, status: { in: ["PAID", "CHECKED_IN"] } },
+      select: { paymentMethod: true, status: true },
+    }),
+    prisma.order.findMany({
       where,
       orderBy: { createdAt: "desc" },
       skip: (filter.page - 1) * PAGE_SIZE,
@@ -62,43 +53,31 @@ export default async function AttendeesPage({
         name: true,
         email: true,
         code: true,
+        quantity: true,
+        amountCents: true,
         status: true,
         paymentMethod: true,
         answers: true,
         rejectionReason: true,
         createdAt: true,
-        // Latest upload of the order only, and never the bytes.
-        order: {
-          select: {
-            receipts: {
-              orderBy: { uploadedAt: "desc" },
-              take: 1,
-              select: { id: true, mimeType: true, purgedAt: true },
-            },
-          },
+        // Latest upload only, and never the bytes.
+        receipts: {
+          orderBy: { uploadedAt: "desc" },
+          take: 1,
+          select: { id: true, mimeType: true, purgedAt: true, uploadedAt: true },
+        },
+        tickets: {
+          orderBy: { seq: "asc" },
+          select: { id: true, code: true, seq: true, status: true, checkedInAt: true, checkedInBy: true },
         },
       },
     }),
   ]);
 
   const counts = countByStatus(groups);
-  const rows: AttendeeRow[] = tickets.map((t) => {
-    const latest = t.order.receipts[0];
-    return {
-      id: t.id,
-      name: t.name,
-      email: t.email,
-      code: formatShortCode(t.code),
-      status: t.status,
-      paymentMethod: t.paymentMethod,
-      createdAt: formatMx(t.createdAt),
-      answers: toAnswerEntries(t.answers),
-      rejectionReason: t.rejectionReason,
-      receipt: latest ? { id: latest.id, mimeType: latest.mimeType, purged: latest.purgedAt !== null } : null,
-    };
-  });
+  const rows = orders.map(toOrderRow);
+  const cashUp = computeCashUp(paidOrders, issuedTickets);
 
-  const cashUp = computeCashUp(paidTickets);
   const exportQs = new URLSearchParams();
   if (filter.status) exportQs.set("status", filter.status);
   if (filter.q) exportQs.set("q", filter.q);
@@ -117,15 +96,15 @@ export default async function AttendeesPage({
   return (
     <div className="space-y-4">
       <CashUpSummary summary={cashUp} exportHref={exportHref} />
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
-        {TICKET_STATUSES.map((s) => (
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
+        {ORDER_STATUSES.map((s) => (
           <Link
             key={s}
             href={`/dashboard/events/${event.id}/attendees?status=${s}`}
             className="rounded-lg border bg-card p-3 hover:bg-accent transition-colors"
           >
             <p className="text-2xl font-bold">{counts[s]}</p>
-            <p className="text-xs text-muted-foreground">{STATUS_LABELS[s]}</p>
+            <p className="text-xs text-muted-foreground">{ORDER_STATUS_LABELS[s]}</p>
           </Link>
         ))}
       </div>
@@ -137,18 +116,18 @@ export default async function AttendeesPage({
           defaultValue={filter.q}
           placeholder="Buscar por nombre, correo o código"
           className="h-9 flex-1 rounded-md border bg-background px-3 text-sm"
-          aria-label="Buscar asistentes"
+          aria-label="Buscar compras"
         />
         <select
           name="status"
           defaultValue={filter.status ?? ""}
           className="h-9 rounded-md border bg-background px-3 text-sm"
-          aria-label="Filtrar por estado"
+          aria-label="Filtrar por estado de la compra"
         >
           <option value="">Todos los estados</option>
-          {TICKET_STATUSES.map((s) => (
+          {ORDER_STATUSES.map((s) => (
             <option key={s} value={s}>
-              {STATUS_LABELS[s]}
+              {ORDER_STATUS_LABELS[s]}
             </option>
           ))}
         </select>
@@ -161,7 +140,7 @@ export default async function AttendeesPage({
 
       <div className="flex items-center justify-between text-sm text-muted-foreground">
         <span>
-          {total} {total === 1 ? "resultado" : "resultados"} · Página {Math.min(filter.page, pages)} de {pages}
+          {total} {total === 1 ? "compra" : "compras"} · Página {Math.min(filter.page, pages)} de {pages}
         </span>
         <div className="flex gap-2">
           {filter.page > 1 && (

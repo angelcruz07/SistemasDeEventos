@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   MAX_PAGE,
+  ORDER_STATUS_LABELS,
   PAGE_SIZE,
   STATUS_LABELS,
   buildAttendeeWhere,
@@ -13,9 +14,13 @@ describe("parseAttendeeFilter", () => {
     expect(parseAttendeeFilter({})).toEqual({ status: undefined, q: "", page: 1 });
   });
 
-  it("accepts a known status and ignores unknown ones", () => {
+  it("accepts a known order status and ignores unknown ones", () => {
     expect(parseAttendeeFilter({ status: "PAID" }).status).toBe("PAID");
     expect(parseAttendeeFilter({ status: "HACKED" }).status).toBeUndefined();
+  });
+
+  it("does not accept ticket-only statuses", () => {
+    expect(parseAttendeeFilter({ status: "CHECKED_IN" }).status).toBeUndefined();
   });
 
   it("takes the first value of repeated params and trims/limits the query", () => {
@@ -38,41 +43,44 @@ describe("parseAttendeeFilter", () => {
   });
 });
 
-describe("buildAttendeeWhere", () => {
+describe("buildAttendeeWhere (orders)", () => {
   it("always scopes to the event", () => {
     expect(buildAttendeeWhere("e1", { q: "", page: 1 })).toEqual({ eventId: "e1" });
   });
 
-  it("adds the status filter", () => {
+  it("applies the status filter to the order", () => {
     expect(buildAttendeeWhere("e1", { status: "PAID", q: "", page: 1 })).toEqual({ eventId: "e1", status: "PAID" });
   });
 
-  it("searches name, email and the normalized code", () => {
+  it("searches buyer name, email, order code and ticket codes (normalized)", () => {
     const where = buildAttendeeWhere("e1", { q: "7k3-q9m", page: 1 });
     expect(where.OR).toContainEqual({ code: { contains: "7K3Q9M" } });
+    expect(where.OR).toContainEqual({ tickets: { some: { code: { contains: "7K3Q9M" } } } });
     expect(where.OR).toContainEqual({ name: { contains: "7k3-q9m", mode: "insensitive" } });
     expect(where.OR).toContainEqual({ email: { contains: "7k3-q9m", mode: "insensitive" } });
   });
 
-  it("skips the code clause for very short queries", () => {
+  it("skips the code clauses for very short queries", () => {
     const where = buildAttendeeWhere("e1", { q: "a", page: 1 });
-    expect(where.OR?.some((c) => "code" in c)).toBe(false);
+    expect(where.OR?.some((c) => "code" in c || "tickets" in c)).toBe(false);
   });
 });
 
 describe("countByStatus", () => {
-  it("fills zero for missing statuses", () => {
+  it("fills zero for missing order statuses", () => {
     const counts = countByStatus([{ status: "PAID", _count: { _all: 3 } }]);
     expect(counts.PAID).toBe(3);
     expect(counts.REJECTED).toBe(0);
+    expect(Object.keys(counts)).toHaveLength(5);
   });
 });
 
 describe("labels", () => {
   it("has a Spanish label per status", () => {
     expect(STATUS_LABELS.PENDING_RECEIPT).toBe("Pendiente de comprobante");
-    expect(STATUS_LABELS.PENDING_VALIDATION).toBe("Pendiente de validar");
     expect(STATUS_LABELS.CHECKED_IN).toBe("Ingresó");
+    expect(ORDER_STATUS_LABELS.PENDING_VALIDATION).toBe("Pendiente de validar");
+    expect(ORDER_STATUS_LABELS.PAID).toBe("Pagado");
     expect(PAGE_SIZE).toBeGreaterThan(0);
   });
 });
