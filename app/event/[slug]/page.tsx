@@ -113,6 +113,8 @@ export default async function EventPage({
                   slug={event.slug}
                   schema={event.formSchema}
                   priceLabel={priceLabel}
+                  priceCents={event.priceCents}
+                  purchaseLimit={event.purchaseLimit}
                   accent={{ background: theme.accent, color: theme.accentText }}
                 />
               ) : (

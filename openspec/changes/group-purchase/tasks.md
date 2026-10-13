@@ -29,10 +29,10 @@ Verify: full suite + manual run on a DB copy (legacy pending link → upload →
 Verify: no NULL `orderId`. Rollback is forward-fix only from here.
 
 ## PR4 — Buyer UI + quantity on (~350)
-- [ ] 4.1 Public form: quantity input with a live total (`priceCents × qty`). Server validation via `parseQuantity`/`decideOrder`.
-- [ ] 4.2 `app/order/[token]/page.tsx`: SPEI instructions (order amount, order code as concept), upload, review state, PAID → list of N ticket links.
-- [ ] 4.3 `/ticket/[token]`: redirect a not-yet-issued legacy ticket to its order page. Show "Boleto n de N".
-- [ ] 4.4 TDD `EmailSender.sendBatch` (Resend batch ≤100 per call, chunked; the console sender loops). The approval sends N emails in `after()`.
+- [x] 4.1 Public form: quantity input with a live total (`priceCents × qty`). Server validation via `parseQuantity`/`decideOrder`.
+- [x] 4.2 `app/order/[token]/page.tsx`: SPEI instructions (order amount, order code as concept), upload, review state, PAID → list of N ticket links.
+- [x] 4.3 `/ticket/[token]`: redirect a not-yet-issued legacy ticket to its order page. Show "Boleto n de N".
+- [x] 4.4 TDD `EmailSender.sendBatch` (Resend batch ≤100 per call, chunked; the console sender loops). The approval sends N emails in `after()`.
 
 ## PR5 — Organizer views (~400)
 - [ ] 5.1 Attendees page: order rows (buyer, code, quantity, amount, status, receipt, actions) with expandable tickets. Status filter on the order. Search also matches ticket codes.

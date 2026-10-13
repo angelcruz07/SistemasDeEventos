@@ -6,7 +6,7 @@ import { redactEmails } from "@/lib/email/redact";
 import { renderTicketIssued } from "@/lib/email/templates";
 import { getTicketingEnv } from "@/lib/env";
 import { formatShortCode } from "@/lib/ticketing/short-code";
-import { signTicketToken } from "@/lib/ticketing/token";
+import { signOrderToken, signTicketToken } from "@/lib/ticketing/token";
 
 export interface TicketEmailTicket {
   id: string;
@@ -110,10 +110,9 @@ export async function sendTicketEmails(tickets: readonly TicketEmailTicket[], ev
 
 /**
  * Sends the "received" or "rejected" email of an order that is not paid yet. Amount and
- * concept come from the order. Until /order/[token] exists the link is the ticket page
- * with a ticket-purpose token over the order id: for quantity-1 orders the order id IS
- * its (mirror) ticket id, so the link resolves to a working page and survives approval.
- * Never throws.
+ * concept come from the order. The link is always the order page (/order/[token]), whatever
+ * the quantity; links already emailed for quantity-1 orders keep working through the
+ * mirror ticket. Never throws.
  */
 export async function sendOrderEmail(
   kind: "received" | "rejected",
@@ -123,7 +122,7 @@ export async function sendOrderEmail(
 ): Promise<boolean> {
   try {
     const { signingSecret, appUrl } = getTicketingEnv();
-    const link = `${appUrl}/ticket/${signTicketToken(order.id, signingSecret)}`;
+    const link = `${appUrl}/order/${signOrderToken(order.id, signingSecret)}`;
     const rendered = buildOrderEmail(kind, { order, event, link, reason });
 
     const result = await sendEmail({ ...rendered, to: order.email });

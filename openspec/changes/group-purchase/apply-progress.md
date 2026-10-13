@@ -42,3 +42,11 @@ Known gaps: legacy order drift (old code changing a ticket after the backfill wh
 - [x] scripts/rollback-orders.sql: receipts repoint to the first ticket of the order; header says pre-contract only.
 Read-only check on the testing DB before the migration: 3 tickets and 1 receipt without orderId; 1 drifted quantity-1 order (LGCY01: order PENDING_VALIDATION, ticket PAID); orders 11 vs tickets 14.
 Gap: between applying the migration and deploying PR3 code, the PR2 deployment fails on receipt upload (writes ticketId) and the attendees list (reads Ticket.receipts). Keep the window short.
+
+## Batch 4 - PR4 "Buyer UI + quantity on" (branch feat/group-purchase-pr4-buyer-ui)
+- [x] 4.4 EmailSender.sendBatch: pure chunk/sendInChunks (TDD, 100 per call, aligned results, failed chunk isolated); ResendSender uses resend.batch.send (SDK 6.32.1 exposes it); ConsoleSender loops; sendEmails + sendTicketEmails record ticketEmailSentAt per ticket; approveOrder/resendOrder use one batch in after().
+- [x] 4.2 /order/[token] page (orderViewFor TDD): SpeiInstructions with copy buttons using order amount and order code, ReceiptUpload (scope="orders"), review state, PAID ticket list "Boleto n de N" with /ticket links, cancelled view. Order emails (received, rejected) now link to /order/[token] for every quantity.
+- [x] 4.3 /ticket/[token]: pre-issue tickets redirect to the order page (ticketRedirectsToOrder TDD); TicketCard shows "Boleto n de N" when the order has more than one ticket.
+- [x] 4.1 Form: quantity stepper (hidden when purchaseLimit is 1), live total (clampQuantity/orderTotalLabel TDD). registerForEvent takes quantity (parseQuantity + decideOrder), one order; quantity 1 keeps the mirror ticket; quantity > 1 creates none until approval; free N creates N PAID tickets in the same tx and sends one batch. Quantity refusal text: "No hay lugares suficientes para esa cantidad."
+Deviation/notes: purchaseLimit = max(1, min(room, 50)) is public (room only when it is under 50). The ticket page upload/review branches are now unreachable (redirect first) but kept as a defensive fallback. No schema change.
+Needs DB/e2e: quantity 3 paid flow (register, upload on /order, approve, N emails, /order list), free N flow, legacy quantity-1 link redirect, event at capacity refusal.
