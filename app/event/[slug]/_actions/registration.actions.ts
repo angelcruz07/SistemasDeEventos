@@ -9,10 +9,10 @@ import { getTicketingEnv } from "@/lib/env";
 import { hitRateLimit } from "@/lib/server/rate-limit";
 import { getClientIp, rateLimitKey } from "@/lib/server/request-keys";
 import { countHeld } from "@/lib/server/held";
-import { ensureOrderForTicket, lockEvent } from "@/lib/server/orders";
+import { lockEvent } from "@/lib/server/orders";
 import { sendOrderEmail, sendTicketEmail } from "@/lib/server/ticket-email";
 import { parseFormSchema, validateAnswers } from "@/lib/ticketing/form-schema";
-import { ORDER_STATUSES, decideOrder, isOpenOrder, resolveExistingOrder } from "@/lib/ticketing/order";
+import { ORDER_STATUSES, decideOrder, isOpenOrder } from "@/lib/ticketing/order";
 import { emailKindFor, isUniqueViolation } from "@/lib/ticketing/registration";
 import { createWithUniqueCode, generateShortCode } from "@/lib/ticketing/short-code";
 
@@ -60,9 +60,7 @@ function isInput(value: unknown): value is RegistrationInput {
  * Public registration: creates an Order (quantity 1 for now). At most one OPEN order
  * per (event, email): a repeated email re-sends that order's link and the response is
  * the same as for a new registration, so the form cannot be used to probe emails.
- * While the legacy (eventId, email) ticket unique exists, a second purchase by a buyer
- * whose order is already PAID/CANCELLED cannot create anything: the response is still the
- * generic success (no email oracle), a PAID order re-sends its tickets, CANCELLED sends nothing.
+ * A buyer whose earlier order is PAID/CANCELLED simply creates a new order (no email unique).
  * A quantity-1 order is mirrored by one ticket with the SAME id and code (the shape the
  * migration backfill produces), so emailed links and the organizer list keep working.
  * (When the event is closed or full a NEW email is refused while a known one
@@ -106,24 +104,11 @@ export async function registerForEvent(slug: string, input: unknown): Promise<Re
             orderBy: { createdAt: "desc" },
             select: { id: true, status: true },
           });
-          // A ticket written by code that predates orders gets its order resolved here, under the lock.
-          const legacyTicket = openOrder
-            ? null
-            : await tx.ticket.findUnique({ where: { eventId_email: { eventId: event.id, email } }, select: { id: true } });
-          const legacyOrder = legacyTicket ? await ensureOrderForTicket(tx, legacyTicket.id) : null;
-          const { existing, taken } = resolveExistingOrder({ openOrder, legacyOrder });
-          // The legacy email unique makes a second purchase impossible. Answer like any
-          // registration (no oracle) and let after() re-send the tickets of a PAID order.
-          if (taken) {
-            const order = await tx.order.findUniqueOrThrow({ where: { id: taken.id } });
-            return { kind: "settled" as const, order, event: current };
-          }
-
           const decision = decideOrder({
             event: current,
             held: await countHeld(tx, event.id),
             quantity: 1,
-            existing,
+            existing: openOrder,
           });
           if (decision.kind === "refused") return decision;
           if (decision.kind === "duplicate") {
@@ -171,21 +156,6 @@ export async function registerForEvent(slug: string, input: unknown): Promise<Re
     );
 
     if (outcome.kind === "refused") return { success: false, error: REFUSALS[outcome.reason] };
-
-    if (outcome.kind === "settled") {
-      const { order, event: settledEvent } = outcome;
-      if (order.status === "PAID") {
-        after(async () => {
-          const tickets = await prisma.ticket.findMany({
-            where: { orderId: order.id, status: { in: ["PAID", "CHECKED_IN"] } },
-            orderBy: { seq: "asc" },
-            select: { id: true, name: true, code: true },
-          });
-          for (const t of tickets) await sendTicketEmail({ ...t, email }, settledEvent);
-        });
-      }
-      return { success: true };
-    }
 
     // Best effort, after commit and after the response: a provider outage must not undo the
     // registration, and awaiting the send would make a duplicate (re-send) slower than a new

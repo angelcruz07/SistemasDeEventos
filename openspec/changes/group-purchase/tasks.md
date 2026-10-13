@@ -25,7 +25,7 @@ Verify: `migrate deploy` on a DB copy, parity check, app unchanged.
 Verify: full suite + manual run on a DB copy (legacy pending link → upload → approve).
 
 ## PR3 — Contract migration (~60), deploy right after PR2
-- [ ] 3.1 Re-run the backfill. Set `orderId` NOT NULL (Ticket, Receipt). Drop `Ticket_eventId_email_key` and `Receipt.ticketId`. Update the schema.
+- [x] 3.1 Re-run the backfill. Set `orderId` NOT NULL (Ticket, Receipt). Drop `Ticket_eventId_email_key` and `Receipt.ticketId`. Update the schema. (migration 20261013120000_orders_contract generated, NOT applied yet)
 Verify: no NULL `orderId`. Rollback is forward-fix only from here.
 
 ## PR4 — Buyer UI + quantity on (~350)
@@ -42,5 +42,5 @@ Verify: no NULL `orderId`. Rollback is forward-fix only from here.
 ## Carry-over from PR1 review (must address)
 - [x] PR2: receipt purge branch (a) must also cover receipts linked only by `orderId` (expired events), not just `ticket.event`.
 - [x] PR2: cancel must never hard-delete an Order (FKs cascade to tickets and receipts).
-- PR3: the backfill re-run must also SYNC mutable fields of already-backfilled orders from their legacy ticket (status, rejectionReason, reviewedAt) via `ON CONFLICT (id) DO UPDATE` or a drift-sync UPDATE, because the old deployed code keeps changing tickets only. Run the README parity check before and after.
-- Rollback script: receipts of multi-ticket orders stay with null `ticketId`; repoint them to the order's first ticket or list them for manual review.
+- [x] PR3 (migration NOT applied yet): the backfill re-run must also SYNC mutable fields of already-backfilled orders from their legacy ticket (status, rejectionReason, reviewedAt) via `ON CONFLICT (id) DO UPDATE` or a drift-sync UPDATE, because the old deployed code keeps changing tickets only. Run the README parity check before and after.
+- [x] Rollback script (pre-contract only): receipts of multi-ticket orders stay with null `ticketId`; repoint them to the order's first ticket or list them for manual review.

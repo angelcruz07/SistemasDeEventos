@@ -2,16 +2,16 @@ import { describe, expect, it } from "vitest";
 import { HOLDING_STATUSES, countHeld, hasRoom, hasSpot, heldTotal, isRegistrationOpen } from "./capacity";
 
 describe("heldTotal (D5)", () => {
-  it("adds validating order quantities, issued tickets and orderless validating tickets", () => {
-    expect(heldTotal({ pendingQuantity: 3, issuedTickets: 4, orphanPendingTickets: 1 })).toBe(8);
+  it("adds validating order quantities and issued tickets", () => {
+    expect(heldTotal({ pendingQuantity: 3, issuedTickets: 4 })).toBe(7);
   });
   it("does not double count tickets already issued for a still-validating order", () => {
     // 1 validating order of qty 1 whose ticket is already PAID: one spot, not two.
-    expect(heldTotal({ pendingQuantity: 1, issuedTickets: 1, orphanPendingTickets: 0, issuedOfPending: 1 })).toBe(1);
-    expect(heldTotal({ pendingQuantity: 3, issuedTickets: 2, orphanPendingTickets: 0, issuedOfPending: 1 })).toBe(4);
+    expect(heldTotal({ pendingQuantity: 1, issuedTickets: 1, issuedOfPending: 1 })).toBe(1);
+    expect(heldTotal({ pendingQuantity: 3, issuedTickets: 2, issuedOfPending: 1 })).toBe(4);
   });
   it("treats an empty aggregate (null sum) as zero", () => {
-    expect(heldTotal({ pendingQuantity: null, issuedTickets: 0, orphanPendingTickets: 0 })).toBe(0);
+    expect(heldTotal({ pendingQuantity: null, issuedTickets: 0, })).toBe(0);
   });
 });
 

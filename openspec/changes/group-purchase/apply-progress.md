@@ -32,3 +32,13 @@ Design decisions / deviations (PR2 only):
 - A buyer with a PAID/CANCELLED order who registers again with the same email gets "Ya tienes un boleto con este correo." (legacy unique). This replaces the old silent re-send of the ticket link for PAID buyers; PR3 removes the unique.
 - decideRegistration/RegistrationDecision in registration.ts are now unused by the action (kept with tests; remove in PR3).
 Known gaps: legacy order drift (old code changing a ticket after the backfill while its order exists) still PR3. Creating N>1 tickets with the same email violates the legacy unique, so quantity>1 must wait for PR3.
+
+## Batch 3 - PR3 "Contract migration" (branch feat/group-purchase-pr3-contract)
+- [x] 3.1 migration prisma/migrations/20261013120000_orders_contract (backfill re-run, drift sync via UPDATE ... FROM, NOT NULL, drop Ticket_eventId_email_key, drop Receipt.ticketId) + README with pre/post checks and deploy order. NOT APPLIED to any DB.
+- [x] Code: no use of Receipt.ticketId (upload, purge, receipt route, attendees); removed ensureOrderForTicket, legacyOrderFromTicket, resolveExistingOrder, orphanPendingTickets in heldTotal, receiptGroupKey (orderless tickets are impossible after NOT NULL).
+- [x] Registration dedupes by open order only; a buyer with a PAID/CANCELLED order creates a new one.
+- [x] Door walk-in: blocksWalkIn (TDD) + check under lockEvent; refuses with the existing Spanish message when the email has an open or PAID order.
+- [x] Cleanup: decideRegistration/RegistrationDecision and tests removed.
+- [x] scripts/rollback-orders.sql: receipts repoint to the first ticket of the order; header says pre-contract only.
+Read-only check on the testing DB before the migration: 3 tickets and 1 receipt without orderId; 1 drifted quantity-1 order (LGCY01: order PENDING_VALIDATION, ticket PAID); orders 11 vs tickets 14.
+Gap: between applying the migration and deploying PR3 code, the PR2 deployment fails on receipt upload (writes ticketId) and the attendees list (reads Ticket.receipts). Keep the window short.

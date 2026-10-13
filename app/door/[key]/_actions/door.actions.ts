@@ -14,10 +14,12 @@ import {
   getDoorSession,
   type DoorSession,
 } from "@/lib/server/door-session";
+import { lockEvent } from "@/lib/server/orders";
 import { hitRateLimit } from "@/lib/server/rate-limit";
 import { getClientIp, rateLimitKey } from "@/lib/server/request-keys";
 import { checkInDecision, escapeLike, parseScanInput, parseSearchQuery, parseWalkIn, type CheckInDecision, type DoorErrorCode } from "@/lib/ticketing/checkin";
 import { toDoorTicketView, type DoorTicketView } from "@/lib/ticketing/door-view";
+import { ORDER_STATUSES, blocksWalkIn } from "@/lib/ticketing/order";
 import { isUniqueViolation } from "@/lib/ticketing/registration";
 import { createWithUniqueCode, generateShortCode } from "@/lib/ticketing/short-code";
 import { initialStatus } from "@/lib/ticketing/status";
@@ -256,6 +258,8 @@ export async function checkIn(key: string, ticketId: string): Promise<CheckInRes
 
 class EmailTaken extends Error {}
 
+const BLOCKING_STATUSES = ORDER_STATUSES.filter(blocksWalkIn);
+
 /**
  * Cash walk-in: price and allowCash are read server-side; capacity is ignored by design.
  * Creates a PAID cash Order (quantity 1) and its CHECKED_IN ticket in one transaction;
@@ -284,56 +288,53 @@ export async function createWalkIn(key: string, input: unknown): Promise<WalkInR
     const created = await createWithUniqueCode(
       () => generateShortCode(randomInt),
       async (code) => {
-        try {
-          const id = randomUUID();
-          return await prisma.$transaction(async (tx) => {
-            await tx.order.create({
-              data: {
-                id,
-                eventId: session.access.eventId,
-                code,
-                name,
-                email,
-                answers,
-                quantity: 1,
-                unitPriceCents: event.priceCents,
-                amountCents: event.priceCents,
-                currency: event.currency,
-                paymentMethod: "CASH",
-                status: "PAID",
-              },
-            });
-            return tx.ticket.create({
-              data: {
-                id,
-                orderId: id,
-                seq: 1,
-                eventId: session.access.eventId,
-                code,
-                name,
-                email,
-                answers,
-                status,
-                paymentMethod: "CASH",
-                amountCents: event.priceCents,
-                currency: event.currency,
-                checkedInAt: new Date(),
-                checkedInBy: session.staffName,
-              },
-              select: TICKET_SELECT,
-            });
-          });
-        } catch (error) {
-          // The unique violation is either the short code (retry) or (eventId, email) (refuse).
-          if (email && isUniqueViolation(error)) {
-            const taken = await prisma.ticket.findUnique({
-              where: { eventId_email: { eventId: session.access.eventId, email } },
+        const id = randomUUID();
+        return await prisma.$transaction(async (tx) => {
+          // Same per-event lock as registration, so the email check below cannot race a public order.
+          await lockEvent(tx, session.access.eventId);
+          if (email) {
+            const taken = await tx.order.findFirst({
+              where: { eventId: session.access.eventId, email, status: { in: BLOCKING_STATUSES } },
               select: { id: true },
             });
             if (taken) throw new EmailTaken();
           }
-          throw error;
-        }
+          await tx.order.create({
+            data: {
+              id,
+              eventId: session.access.eventId,
+              code,
+              name,
+              email,
+              answers,
+              quantity: 1,
+              unitPriceCents: event.priceCents,
+              amountCents: event.priceCents,
+              currency: event.currency,
+              paymentMethod: "CASH",
+              status: "PAID",
+            },
+          });
+          return tx.ticket.create({
+            data: {
+              id,
+              orderId: id,
+              seq: 1,
+              eventId: session.access.eventId,
+              code,
+              name,
+              email,
+              answers,
+              status,
+              paymentMethod: "CASH",
+              amountCents: event.priceCents,
+              currency: event.currency,
+              checkedInAt: new Date(),
+              checkedInBy: session.staffName,
+            },
+            select: TICKET_SELECT,
+          });
+        });
       },
       isUniqueViolation,
     );

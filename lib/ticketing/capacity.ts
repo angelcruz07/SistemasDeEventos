@@ -40,10 +40,9 @@ export function isRegistrationOpen(
 export function heldTotal(input: {
   pendingQuantity: number | null;
   issuedTickets: number;
-  orphanPendingTickets: number;
   /** Issued tickets that belong to a still-validating order: already inside `issuedTickets`. */
   issuedOfPending?: number;
 }): number {
   const pending = Math.max(0, (input.pendingQuantity ?? 0) - (input.issuedOfPending ?? 0));
-  return pending + input.issuedTickets + input.orphanPendingTickets;
+  return pending + input.issuedTickets;
 }

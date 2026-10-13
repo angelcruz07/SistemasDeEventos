@@ -67,31 +67,36 @@ export default async function AttendeesPage({
         answers: true,
         rejectionReason: true,
         createdAt: true,
-        // Latest upload only, and never the bytes.
-        receipts: {
-          orderBy: { uploadedAt: "desc" },
-          take: 1,
-          select: { id: true, mimeType: true, purgedAt: true },
+        // Latest upload of the order only, and never the bytes.
+        order: {
+          select: {
+            receipts: {
+              orderBy: { uploadedAt: "desc" },
+              take: 1,
+              select: { id: true, mimeType: true, purgedAt: true },
+            },
+          },
         },
       },
     }),
   ]);
 
   const counts = countByStatus(groups);
-  const rows: AttendeeRow[] = tickets.map((t) => ({
-    id: t.id,
-    name: t.name,
-    email: t.email,
-    code: formatShortCode(t.code),
-    status: t.status,
-    paymentMethod: t.paymentMethod,
-    createdAt: formatMx(t.createdAt),
-    answers: toAnswerEntries(t.answers),
-    rejectionReason: t.rejectionReason,
-    receipt: t.receipts[0]
-      ? { id: t.receipts[0].id, mimeType: t.receipts[0].mimeType, purged: t.receipts[0].purgedAt !== null }
-      : null,
-  }));
+  const rows: AttendeeRow[] = tickets.map((t) => {
+    const latest = t.order.receipts[0];
+    return {
+      id: t.id,
+      name: t.name,
+      email: t.email,
+      code: formatShortCode(t.code),
+      status: t.status,
+      paymentMethod: t.paymentMethod,
+      createdAt: formatMx(t.createdAt),
+      answers: toAnswerEntries(t.answers),
+      rejectionReason: t.rejectionReason,
+      receipt: latest ? { id: latest.id, mimeType: latest.mimeType, purged: latest.purgedAt !== null } : null,
+    };
+  });
 
   const cashUp = computeCashUp(paidTickets);
   const exportQs = new URLSearchParams();

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { RETENTION_DAYS, eventExpiryCutoff, receiptGroupKey, selectSuperseded, shouldRunPurge } from "./receipt-purge";
+import { RETENTION_DAYS, eventExpiryCutoff, selectSuperseded, shouldRunPurge } from "./receipt-purge";
 
 const DAY = 24 * 60 * 60 * 1000;
 const now = new Date("2026-10-08T12:00:00Z");
@@ -56,16 +56,6 @@ describe("shouldRunPurge", () => {
   it("skips inside the interval and runs after it", () => {
     expect(shouldRunPurge(new Date(now.getTime() - interval + 1), now, interval)).toBe(false);
     expect(shouldRunPurge(new Date(now.getTime() - interval), now, interval)).toBe(true);
-  });
-});
-
-describe("receiptGroupKey", () => {
-  it("groups by order when the receipt has one, else by its legacy ticket", () => {
-    expect(receiptGroupKey({ orderId: "o1", ticketId: "t1" })).toBe("o1");
-    expect(receiptGroupKey({ orderId: null, ticketId: "t1" })).toBe("t1");
-  });
-  it("is null for an unlinked receipt so it is never grouped", () => {
-    expect(receiptGroupKey({ orderId: null, ticketId: null })).toBeNull();
   });
 });
 

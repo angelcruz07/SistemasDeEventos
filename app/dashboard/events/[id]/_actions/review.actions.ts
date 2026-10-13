@@ -6,7 +6,7 @@ import { after } from "next/server";
 import type { Prisma } from "@/app/generated/prisma/client";
 import prisma from "@/app/lib/prisma";
 import { getOwnedEvent } from "@/lib/server/guards";
-import { ensureOrderForTicket, lockEvent } from "@/lib/server/orders";
+import { lockEvent } from "@/lib/server/orders";
 import { sendOrderEmail, sendTicketEmail } from "@/lib/server/ticket-email";
 import { PRE_ISSUE_STATUSES, canTransitionOrder, planIssuance } from "@/lib/ticketing/order";
 import { isCodeCollision } from "@/lib/ticketing/registration";
@@ -37,22 +37,14 @@ async function loadOrder(eventId: string, orderId: string) {
 }
 
 /**
- * The attendees list still speaks ticket ids. A ticket resolves to its order; a ticket
- * written by pre-order code gets its order created here, under the event lock. An id with
+ * The attendees list still speaks ticket ids. A ticket resolves to its order. An id with
  * no ticket may be an order that has no ticket yet.
  */
 async function orderIdFor(eventId: string, id: string): Promise<string | null> {
   const owned = await getOwnedEvent(eventId);
   if (!owned) return null;
   const ticket = await prisma.ticket.findFirst({ where: { id, eventId: owned.event.id }, select: { id: true, orderId: true } });
-  if (ticket?.orderId) return ticket.orderId;
-  if (ticket) {
-    const order = await prisma.$transaction(async (tx) => {
-      await lockEvent(tx, owned.event.id);
-      return ensureOrderForTicket(tx, ticket.id);
-    }, TX_OPTIONS);
-    return order?.id ?? null;
-  }
+  if (ticket) return ticket.orderId;
   const order = await prisma.order.findFirst({ where: { id, eventId: owned.event.id }, select: { id: true } });
   return order?.id ?? null;
 }

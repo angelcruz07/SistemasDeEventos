@@ -8,7 +8,7 @@ export function eventExpiryCutoff(now: Date): Date {
 
 export interface ReceiptRef {
   id: string;
-  /** orderId, or the legacy ticketId for receipts that have no order yet. */
+  /** The order the receipt belongs to. */
   groupId: string;
   uploadedAt: Date;
   purged: boolean;
@@ -25,11 +25,6 @@ export function selectSuperseded(rows: ReceiptRef[]): string[] {
     if (!current || row.uploadedAt > current.uploadedAt) latest.set(row.groupId, row);
   }
   return rows.filter((row) => !row.purged && latest.get(row.groupId) !== row).map((row) => row.id);
-}
-
-/** Supersession is per order; receipts uploaded by pre-order code fall back to their ticket. */
-export function receiptGroupKey(receipt: { orderId: string | null; ticketId: string | null }): string | null {
-  return receipt.orderId ?? receipt.ticketId;
 }
 
 /** Throttle for the lazy purge: first run, or at least `intervalMs` since the last. */

@@ -5,11 +5,10 @@ import {
   MAX_AMOUNT_CENTS,
   ORDER_STATUSES,
   PRE_ISSUE_STATUSES,
-  legacyOrderFromTicket,
-  resolveExistingOrder,
   canTransitionOrder,
   decideOrder,
   isOpenOrder,
+  blocksWalkIn,
   maxQuantity,
   orderAmount,
   parseQuantity,
@@ -190,77 +189,13 @@ describe("PRE_ISSUE_STATUSES", () => {
   });
 });
 
-describe("legacyOrderFromTicket", () => {
-  const ticket = {
-    id: "t1",
-    eventId: "e1",
-    code: "ABC123",
-    name: "Ana",
-    email: "ana@test.mx",
-    answers: { phone: { label: "Tel", value: "1" } },
-    status: "PENDING_VALIDATION" as const,
-    paymentMethod: "SPEI" as const,
-    amountCents: 35000,
-    currency: "MXN",
-    rejectionReason: null,
-    reviewedAt: null,
-    registrationEmailSentAt: null,
-    createdAt: new Date("2026-10-01T00:00:00Z"),
-  };
-
-  it("mirrors the backfill: id and code are the ticket's, quantity 1, unit = amount", () => {
-    expect(legacyOrderFromTicket(ticket)).toMatchObject({
-      id: "t1",
-      eventId: "e1",
-      code: "ABC123",
-      name: "Ana",
-      email: "ana@test.mx",
-      quantity: 1,
-      unitPriceCents: 35000,
-      amountCents: 35000,
-      currency: "MXN",
-      paymentMethod: "SPEI",
-      status: "PENDING_VALIDATION",
-    });
-  });
-
-  it("maps CHECKED_IN to PAID and keeps the other statuses", () => {
-    expect(legacyOrderFromTicket({ ...ticket, status: "CHECKED_IN" }).status).toBe("PAID");
-    for (const s of ["PENDING_RECEIPT", "PAID", "REJECTED", "CANCELLED"] as const) {
-      expect(legacyOrderFromTicket({ ...ticket, status: s }).status).toBe(s);
+describe("blocksWalkIn", () => {
+  it("refuses a door walk-in when the email already has an open or PAID order", () => {
+    for (const s of ["PENDING_RECEIPT", "PENDING_VALIDATION", "REJECTED", "PAID"] as const) {
+      expect(blocksWalkIn(s)).toBe(true);
     }
   });
-
-  it("carries review fields", () => {
-    const reviewedAt = new Date("2026-10-02T00:00:00Z");
-    const o = legacyOrderFromTicket({ ...ticket, status: "REJECTED", rejectionReason: "borroso", reviewedAt });
-    expect(o.rejectionReason).toBe("borroso");
-    expect(o.reviewedAt).toBe(reviewedAt);
-  });
-});
-
-describe("resolveExistingOrder", () => {
-  it("returns an open order as the duplicate target", () => {
-    expect(resolveExistingOrder({ openOrder: { id: "o1", status: "REJECTED" }, legacyOrder: null })).toEqual({
-      existing: { id: "o1", status: "REJECTED" },
-      taken: null,
-    });
-  });
-  it("uses the lazily resolved legacy order when it is open", () => {
-    expect(resolveExistingOrder({ openOrder: null, legacyOrder: { id: "t1", status: "PENDING_RECEIPT" } })).toEqual({
-      existing: { id: "t1", status: "PENDING_RECEIPT" },
-      taken: null,
-    });
-  });
-  it("reports the settled order when a ticket exists but its order is not open (legacy unique)", () => {
-    for (const status of ["PAID", "CANCELLED"] as const) {
-      expect(resolveExistingOrder({ openOrder: null, legacyOrder: { id: "t1", status } })).toEqual({
-        existing: null,
-        taken: { id: "t1", status },
-      });
-    }
-  });
-  it("is clean when nothing exists", () => {
-    expect(resolveExistingOrder({ openOrder: null, legacyOrder: null })).toEqual({ existing: null, taken: null });
+  it("lets a cancelled order be replaced", () => {
+    expect(blocksWalkIn("CANCELLED")).toBe(false);
   });
 });

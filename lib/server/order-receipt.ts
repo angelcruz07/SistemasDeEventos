@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 import type { Prisma } from "@/app/generated/prisma/client";
 import prisma from "@/app/lib/prisma";
 import { countHeld } from "@/lib/server/held";
-import { ensureOrderForTicket, lockEvent } from "@/lib/server/orders";
+import { lockEvent } from "@/lib/server/orders";
 import { hitRateLimit } from "@/lib/server/rate-limit";
 import { getClientIp, rateLimitKey } from "@/lib/server/request-keys";
 import { PRE_ISSUE_STATUSES } from "@/lib/ticketing/order";
@@ -70,18 +70,18 @@ export async function uploadOrderReceipt(request: Request, target: ReceiptTarget
     const validation = validateReceiptFile(bytes);
     if (!validation.ok) return receiptFail(FILE_ERRORS[validation.error], validation.error === "size" ? 413 : 400);
 
+    // Both kinds resolve to the owning order; a ticket always has one.
     const found =
       target.kind === "order"
-        ? await prisma.order.findUnique({ where: { id: target.id }, select: { eventId: true } })
-        : await prisma.ticket.findUnique({ where: { id: target.id }, select: { eventId: true } });
+        ? await prisma.order.findUnique({ where: { id: target.id }, select: { eventId: true } }).then((o) => o && { ...o, orderId: target.id })
+        : await prisma.ticket.findUnique({ where: { id: target.id }, select: { eventId: true, orderId: true } });
     if (!found) return receiptFail("Boleto no encontrado.", 404);
 
     const refusal = await prisma.$transaction(async (tx) => {
       // Same lock as registration: serializes per event so capacity cannot be oversold.
       await lockEvent(tx, found.eventId);
-      const resolved = target.kind === "ticket" ? await ensureOrderForTicket(tx, target.id) : null;
       const order = await tx.order.findUnique({
-        where: { id: resolved?.id ?? target.id },
+        where: { id: found.orderId },
         select: { id: true, status: true, quantity: true },
       });
       if (!order) return "status" as const;
@@ -94,17 +94,9 @@ export async function uploadOrderReceipt(request: Request, target: ReceiptTarget
       const decision = decideReceiptUpload({ status: order.status, event, held, quantity: order.quantity });
       if (decision.kind === "refused") return decision.reason;
 
-      // Dual-linked to the order's mirror ticket (when it has one) so the organizer list and
-      // a code rollback still find the receipt through the legacy ticket link.
-      const mirror = await tx.ticket.findFirst({
-        where: { orderId: order.id, status: { in: [...PRE_ISSUE_STATUSES] } },
-        orderBy: { seq: "asc" },
-        select: { id: true },
-      });
       await tx.receipt.create({
         data: {
           orderId: order.id,
-          ticketId: mirror?.id ?? null,
           bytes: bytes as Uint8Array<ArrayBuffer>,
           mimeType: validation.mimeType,
           sizeBytes: validation.sizeBytes,

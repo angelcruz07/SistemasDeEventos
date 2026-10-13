@@ -132,7 +132,7 @@ model EventImage {
 }
 
 // A purchase: owns buyer, quantity, money, payment status and receipts.
-// Expand phase: legacy tickets are backfilled 1:1 (Order.id = Ticket.id).
+// Legacy tickets were backfilled 1:1 (Order.id = Ticket.id).
 model Order {
   id                      String        @id @default(uuid())
   eventId                 String
@@ -163,7 +163,7 @@ model Order {
 model Ticket {
   id                      String        @id @default(uuid())
   eventId                 String
-  orderId                 String? // expand phase: nullable until the contract migration
+  orderId                 String
   seq                     Int           @default(1)
   code                    String        @unique // Crockford, 6 chars, shown "7K3-Q9M"
   name                    String
@@ -182,11 +182,9 @@ model Ticket {
   createdAt               DateTime      @default(now())
   updatedAt               DateTime      @updatedAt
 
-  event    Event     @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  order    Order?    @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  receipts Receipt[]
+  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
 
-  @@unique([eventId, email]) // NULLs are distinct in Postgres
   @@index([eventId, status])
   @@index([orderId])
 }
@@ -194,8 +192,7 @@ model Ticket {
 // 1:N keeps rejected-upload history
 model Receipt {
   id         String    @id @default(uuid())
-  ticketId   String? // expand phase: optional, replaced by orderId in the contract migration
-  orderId    String? // expand phase: nullable until the contract migration
+  orderId    String
   bytes      Bytes? // null after purge
   mimeType   String
   sizeBytes  Int
@@ -203,10 +200,8 @@ model Receipt {
   uploadedAt DateTime  @default(now())
   purgedAt   DateTime?
 
-  ticket Ticket? @relation(fields: [ticketId], references: [id], onDelete: Cascade)
-  order  Order?  @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
 
-  @@index([ticketId, uploadedAt])
   @@index([orderId, uploadedAt])
 }
 
