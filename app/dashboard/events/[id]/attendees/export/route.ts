@@ -10,7 +10,7 @@ const MAX_ROWS = 10_000;
 
 const notFound = () => new Response("Not found", { status: 404, headers: { "Cache-Control": "no-store" } });
 
-/** Owner-only CSV export honoring the attendees page filters. Never includes receipts. */
+/** Owner-only CSV export (one row per ticket, plus unpaid orders) honoring the attendees page filters. Never includes receipts. */
 export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const owned = await getOwnedEvent(id);
@@ -18,7 +18,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
   const { event } = owned;
 
   const filter = parseAttendeeFilter(Object.fromEntries(new URL(request.url).searchParams));
-  const tickets = await prisma.ticket.findMany({
+  const orders = await prisma.order.findMany({
     where: buildAttendeeWhere(event.id, filter),
     orderBy: { createdAt: "asc" },
     take: MAX_ROWS,
@@ -28,16 +28,19 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
       email: true,
       status: true,
       paymentMethod: true,
+      quantity: true,
       amountCents: true,
       createdAt: true,
-      checkedInAt: true,
-      checkedInBy: true,
       answers: true,
+      tickets: {
+        orderBy: { seq: "asc" },
+        select: { code: true, seq: true, status: true, amountCents: true, checkedInAt: true, checkedInBy: true },
+      },
     },
   });
 
   const schema = parseFormSchema(event.formSchema) ?? { version: 1 as const, fields: [] };
-  const csv = buildAttendeesCsv(tickets, schema);
+  const csv = buildAttendeesCsv(orders, schema);
   const date = new Date().toISOString().slice(0, 10).replace(/-/g, "");
   const slug = event.slug.replace(/[^a-z0-9-]/gi, "").slice(0, 60) || "evento";
 
