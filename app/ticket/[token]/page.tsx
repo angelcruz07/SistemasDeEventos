@@ -1,12 +1,13 @@
 import type { Metadata } from "next";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { Calendar, Clock, MapPin } from "lucide-react";
 import prisma from "@/app/lib/prisma";
 import { formatEventDate } from "@/lib/datetime";
 import { getTicketingEnv } from "@/lib/env";
+import { ticketLabel, ticketRedirectsToOrder } from "@/lib/ticketing/order-view";
 import { formatShortCode } from "@/lib/ticketing/short-code";
 import { ticketViewFor } from "@/lib/ticketing/ticket-view";
-import { verifyTicketToken } from "@/lib/ticketing/token";
+import { signOrderToken, verifyTicketToken } from "@/lib/ticketing/token";
 import { ReceiptUpload } from "./_components/ReceiptUpload";
 import { SpeiInstructions } from "./_components/SpeiInstructions";
 import { parseTicketDesign } from "@/lib/ticketing/ticket-design";
@@ -22,7 +23,8 @@ export const metadata: Metadata = {
 
 export default async function TicketPage({ params }: { params: Promise<{ token: string }> }) {
   const { token } = await params;
-  const ticketId = verifyTicketToken(token, getTicketingEnv().signingSecret);
+  const { signingSecret } = getTicketingEnv();
+  const ticketId = verifyTicketToken(token, signingSecret);
   if (!ticketId) notFound();
 
   // Explicit columns: receipt bytes and other tickets' data are never loaded here.
@@ -34,6 +36,9 @@ export default async function TicketPage({ params }: { params: Promise<{ token: 
       status: true,
       rejectionReason: true,
       amountCents: true,
+      orderId: true,
+      seq: true,
+      order: { select: { quantity: true } },
       event: {
         select: {
           title: true,
@@ -51,6 +56,11 @@ export default async function TicketPage({ params }: { params: Promise<{ token: 
     },
   });
   if (!ticket) notFound();
+
+  // A ticket that only mirrors an unpaid order has no QR: the order page is where the buyer pays.
+  if (ticketRedirectsToOrder(ticket.status) && !ticket.event.isCancelled) {
+    redirect(`/order/${signOrderToken(ticket.orderId, signingSecret)}`);
+  }
 
   const view = ticketViewFor({ ...ticket, eventCancelled: ticket.event.isCancelled });
   const code = formatShortCode(ticket.code);
@@ -121,6 +131,7 @@ export default async function TicketPage({ params }: { params: Promise<{ token: 
             eventTitle={event.title}
             attendeeName={ticket.name}
             code={code}
+            label={ticket.order.quantity > 1 ? ticketLabel(ticket.seq, ticket.order.quantity) : undefined}
             checkedIn={view.checkedIn}
             qrSrc={`/api/tickets/${encodeURIComponent(token)}/qr.png`}
           />

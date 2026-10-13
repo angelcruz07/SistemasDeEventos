@@ -10,7 +10,16 @@ const MAX_BYTES = 4 * 1024 * 1024;
 const ALLOWED = ["image/jpeg", "image/png", "image/webp", "application/pdf"];
 
 /** Client pre-check is a convenience only; the server re-validates size and real file type. */
-export function ReceiptUpload({ token, rejectionReason }: { token: string; rejectionReason: string | null }) {
+export function ReceiptUpload({
+  token,
+  rejectionReason,
+  scope = "tickets",
+}: {
+  token: string;
+  rejectionReason: string | null;
+  /** Which receipt endpoint the token belongs to: a ticket token or an order token. */
+  scope?: "tickets" | "orders";
+}) {
   const router = useRouter();
   const [file, setFile] = useState<File | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -39,7 +48,7 @@ export function ReceiptUpload({ token, rejectionReason }: { token: string; rejec
     try {
       const body = new FormData();
       body.append("file", file);
-      const res = await fetch(`/api/tickets/${encodeURIComponent(token)}/receipt`, { method: "POST", body });
+      const res = await fetch(`/api/${scope}/${encodeURIComponent(token)}/receipt`, { method: "POST", body });
       const data = (await res.json().catch(() => null)) as { success?: boolean; error?: string } | null;
       if (!res.ok || !data?.success) {
         setError(data?.error ?? "No se pudo subir el comprobante. Inténtalo de nuevo.");

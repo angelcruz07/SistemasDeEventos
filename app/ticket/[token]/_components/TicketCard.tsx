@@ -7,13 +7,15 @@ interface TicketCardProps {
   eventTitle: string;
   attendeeName: string;
   code: string;
+  /** "Boleto 2 de 3", only for multi-ticket orders. */
+  label?: string;
   checkedIn: boolean;
   /** Same-origin QR image; omitted in the owner preview, which shows a placeholder. */
   qrSrc?: string;
 }
 
 /** Shared by the attendee page and the owner's live preview. Colors come only from the parsed design. */
-export function TicketCard({ design, eventTitle, attendeeName, code, checkedIn, qrSrc }: TicketCardProps) {
+export function TicketCard({ design, eventTitle, attendeeName, code, label, checkedIn, qrSrc }: TicketCardProps) {
   const dark = design.template === "dark";
   return (
     <section
@@ -36,6 +38,7 @@ export function TicketCard({ design, eventTitle, attendeeName, code, checkedIn, 
         </h2>
         <div>
           <p className="font-medium break-words">{attendeeName}</p>
+          {label && <p className="text-sm opacity-80">{label}</p>}
           <p className="font-mono text-lg tracking-widest">{code}</p>
         </div>
         {checkedIn ? (
