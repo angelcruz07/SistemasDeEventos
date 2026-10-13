@@ -18,25 +18,24 @@ export async function getDashboardStats() {
 
     const userId = session.user.id;
 
-    const [eventCount, ticketGroups, upcomingEventCount] = await Promise.all([
+    const [eventCount, ticketGroups, pendingOrderCount, upcomingEventCount] = await Promise.all([
       prisma.event.count({ where: { userId } }),
       prisma.ticket.groupBy({
         by: ["status"],
         where: { event: { userId } },
         _count: { _all: true },
       }),
+      // Orders waiting for the organizer to validate a receipt (one per purchase, not per ticket).
+      prisma.order.count({ where: { status: "PENDING_VALIDATION", event: { userId } } }),
       prisma.event.count({
         where: { userId, date: { gte: new Date() } },
       }),
     ]);
 
-    const countFor = (...statuses: TicketStatus[]) =>
-      ticketGroups
-        .filter((g) => statuses.includes(g.status))
-        .reduce((sum, g) => sum + g._count._all, 0);
-    // Tickets that hold a spot: paid or already checked in.
-    const paidTicketCount = countFor("PAID", "CHECKED_IN");
-    const pendingTicketCount = countFor("PENDING_VALIDATION");
+    // Issued tickets: paid or already checked in.
+    const paidTicketCount = ticketGroups
+      .filter((g) => (["PAID", "CHECKED_IN"] as TicketStatus[]).includes(g.status))
+      .reduce((sum, g) => sum + g._count._all, 0);
 
     const recentEvents = await prisma.event.findMany({
       where: { userId },
@@ -55,7 +54,7 @@ export async function getDashboardStats() {
       data: {
         eventCount,
         paidTicketCount,
-        pendingTicketCount,
+        pendingOrderCount,
         upcomingEventCount,
         recentEvents: recentEvents.map((e) => ({
           id: e.id,

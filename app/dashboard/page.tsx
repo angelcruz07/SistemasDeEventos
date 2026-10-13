@@ -80,11 +80,11 @@ export default async function DashboardPage() {
           <CardHeader className="pb-2">
             <CardDescription className="flex items-center gap-2">
               <Clock className="size-4" />
-              Pendientes de validar
+              Compras por validar
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <p className="text-3xl font-bold">{stats?.pendingTicketCount ?? 0}</p>
+            <p className="text-3xl font-bold">{stats?.pendingOrderCount ?? 0}</p>
           </CardContent>
         </Card>
         <Card>
