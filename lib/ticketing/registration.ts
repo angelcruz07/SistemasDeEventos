@@ -1,6 +1,5 @@
-import type { PaymentMethod, TicketStatus } from "@/app/generated/prisma/enums";
+import type { TicketStatus } from "@/app/generated/prisma/enums";
 import { isRegistrationOpen } from "./capacity";
-import { policyFor } from "./payment";
 
 export interface RegistrationEvent {
   registrationOpen: boolean;
@@ -23,29 +22,6 @@ export function registrationAvailability(
   if (event.isCancelled) return { open: false, reason: "closed" };
   if (event.priceCents > 0 && !event.allowSpei) return { open: false, reason: "closed" };
   return isRegistrationOpen(event, held);
-}
-
-export type RegistrationDecision =
-  | { kind: "duplicate"; ticketId: string; status: TicketStatus }
-  | { kind: "refused"; reason: RefusalReason }
-  | { kind: "create"; status: TicketStatus; method: PaymentMethod };
-
-/** Pure decision for a public registration. `held` counts tickets that occupy a spot. */
-export function decideRegistration(input: {
-  event: RegistrationEvent;
-  held: number;
-  existing: { id: string; status: TicketStatus } | null;
-}): RegistrationDecision {
-  // A cancelled event accepts nothing, not even link recovery.
-  if (input.event.isCancelled) return { kind: "refused", reason: "closed" };
-  // An existing ticket always wins, so attendees can recover their link after close/sold out.
-  if (input.existing) return { kind: "duplicate", ticketId: input.existing.id, status: input.existing.status };
-
-  const availability = registrationAvailability(input.event, input.held);
-  if (!availability.open) return { kind: "refused", reason: availability.reason };
-
-  const policy = policyFor("public", input.event.priceCents);
-  return { kind: "create", status: policy.initialStatus(input.event.priceCents), method: policy.method };
 }
 
 /** Which email to (re)send for an existing ticket. Cancelled tickets get nothing. */
