@@ -6,7 +6,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import type { FormField, FormSchema } from "@/lib/ticketing/form-schema";
-import { clampQuantity, orderTotalLabel } from "@/lib/ticketing/quantity-input";
+import { MAX_QUANTITY_UNCAPPED } from "@/lib/ticketing/order";
+import { clampQuantity, orderTotalLabel, sanitizeQuantityText } from "@/lib/ticketing/quantity-input";
 import { registerForEvent } from "../_actions/registration.actions";
 
 type Values = Record<string, string | boolean>;
@@ -91,15 +92,13 @@ export function RegistrationForm({
   schema,
   priceLabel,
   priceCents,
-  purchaseLimit,
   accent,
 }: {
   slug: string;
   schema: FormSchema;
   priceLabel: string;
   priceCents: number;
-  /** Most tickets one order may request. The server enforces the real limit and answers generically. */
-  purchaseLimit: number;
+  /** The stepper never depends on capacity; the server enforces the real limit and answers generically. */
   /** Organizer accent for the submit button (already contrast-checked). */
   accent?: { background: string; color: string };
 }) {
@@ -118,7 +117,7 @@ export function RegistrationForm({
     setSubmitting(true);
     setError(null);
     setFieldErrors({});
-    const quantity = clampQuantity(quantityText, purchaseLimit);
+    const quantity = clampQuantity(quantityText, MAX_QUANTITY_UNCAPPED);
     setQuantityText(String(quantity));
     const result = await registerForEvent(slug, { name, email, fields, quantity });
     if (result.success) {
@@ -143,9 +142,9 @@ export function RegistrationForm({
     );
   }
 
-  const quantity = clampQuantity(quantityText, purchaseLimit);
+  const quantity = clampQuantity(quantityText, MAX_QUANTITY_UNCAPPED);
   const total = orderTotalLabel(priceCents, quantity);
-  const setQuantity = (next: number) => setQuantityText(String(clampQuantity(next, purchaseLimit)));
+  const setQuantity = (next: number) => setQuantityText(String(clampQuantity(next, MAX_QUANTITY_UNCAPPED)));
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4" noValidate>
@@ -168,50 +167,48 @@ export function RegistrationForm({
         <FieldError message={fieldErrors.email} />
       </div>
 
-      {purchaseLimit > 1 && (
-        <div className="space-y-1.5">
-          <Label htmlFor="reg-quantity">Boletos</Label>
-          <div className="flex items-center gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              size="icon"
-              className="size-10"
-              aria-label="Quitar un boleto"
-              disabled={quantity <= 1}
-              onClick={() => setQuantity(quantity - 1)}
-            >
-              <Minus className="size-4" />
-            </Button>
-            <Input
-              id="reg-quantity"
-              type="text"
-              inputMode="numeric"
-              pattern="[0-9]*"
-              className="w-16 text-center tabular-nums"
-              value={quantityText}
-              onChange={(e) => setQuantityText(e.target.value.replace(/D/g, "").slice(0, 3))}
-              onBlur={() => setQuantity(quantity)}
-            />
-            <Button
-              type="button"
-              variant="outline"
-              size="icon"
-              className="size-10"
-              aria-label="Agregar un boleto"
-              disabled={quantity >= purchaseLimit}
-              onClick={() => setQuantity(quantity + 1)}
-            >
-              <Plus className="size-4" />
-            </Button>
-          </div>
-          {quantity > 1 && total && (
-            <p aria-live="polite" className="text-sm text-muted-foreground">
-              {total === "Gratis" ? "Gratis" : `Total: ${total}`}
-            </p>
-          )}
+      <div className="space-y-1.5">
+        <Label htmlFor="reg-quantity">Boletos</Label>
+        <div className="flex items-center gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            size="icon"
+            className="size-10"
+            aria-label="Quitar un boleto"
+            disabled={quantity <= 1}
+            onClick={() => setQuantity(quantity - 1)}
+          >
+            <Minus className="size-4" />
+          </Button>
+          <Input
+            id="reg-quantity"
+            type="text"
+            inputMode="numeric"
+            pattern="[0-9]*"
+            className="w-16 text-center tabular-nums"
+            value={quantityText}
+            onChange={(e) => setQuantityText(sanitizeQuantityText(e.target.value))}
+            onBlur={() => setQuantity(quantity)}
+          />
+          <Button
+            type="button"
+            variant="outline"
+            size="icon"
+            className="size-10"
+            aria-label="Agregar un boleto"
+            disabled={quantity >= MAX_QUANTITY_UNCAPPED}
+            onClick={() => setQuantity(quantity + 1)}
+          >
+            <Plus className="size-4" />
+          </Button>
         </div>
-      )}
+        {quantity > 1 && total && (
+          <p aria-live="polite" className="text-sm text-muted-foreground">
+            {total === "Gratis" ? "Gratis" : `Total: ${total}`}
+          </p>
+        )}
+      </div>
 
       {schema.fields.map((field) => (
         <DynamicField

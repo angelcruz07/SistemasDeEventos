@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { clampQuantity, orderTotalLabel } from "./quantity-input";
+import { MAX_QUANTITY_UNCAPPED } from "./order";
+import { clampQuantity, orderTotalLabel, sanitizeQuantityText } from "./quantity-input";
 
 describe("clampQuantity", () => {
   it("keeps a valid value", () => {
@@ -26,5 +27,23 @@ describe("orderTotalLabel", () => {
   });
   it("uses the same bounds as the server and flags amounts beyond the column", () => {
     expect(orderTotalLabel(2 ** 31 - 1, 2)).toBeNull();
+  });
+});
+
+describe("clampQuantity with the public limit", () => {
+  it("caps at 50 whatever the event capacity is", () => {
+    expect(clampQuantity("500", MAX_QUANTITY_UNCAPPED)).toBe(50);
+  });
+});
+
+describe("sanitizeQuantityText", () => {
+  it("keeps only digits", () => {
+    expect(sanitizeQuantityText("abc")).toBe("");
+    expect(sanitizeQuantityText("-5")).toBe("5");
+    expect(sanitizeQuantityText("3")).toBe("3");
+    expect(sanitizeQuantityText("1D2")).toBe("12");
+  });
+  it("limits the length to 3 characters", () => {
+    expect(sanitizeQuantityText("12345")).toBe("123");
   });
 });

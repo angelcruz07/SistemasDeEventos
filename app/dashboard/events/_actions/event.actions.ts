@@ -6,7 +6,6 @@ import { serverErrorToSpanish } from "@/lib/error-messages";
 import { revalidatePath } from "next/cache";
 import { countHeld } from "@/lib/server/held";
 import { parseFormSchema } from "@/lib/ticketing/form-schema";
-import { maxQuantity } from "@/lib/ticketing/order";
 import { registrationAvailability } from "@/lib/ticketing/registration";
 import { parseTicketDesign } from "@/lib/ticketing/ticket-design";
 import { normalizeEventImages } from "@/lib/ticketing/event-images";
@@ -279,8 +278,6 @@ export async function getEventBySlug(slug: string) {
         // Only the parsed, sanitized design leaves the server; the raw JSON never does.
         design: parseTicketDesign(event.ticketDesign, process.env.CLOUDINARY_CLOUD_NAME),
         availability: availability.open ? ("open" as const) : availability.reason,
-        // Most tickets one order may request (<= 50). Derived from the remaining room, never the capacity itself.
-        purchaseLimit: Math.max(1, maxQuantity(event.capacity, held)),
       },
     };
   } catch (error) {

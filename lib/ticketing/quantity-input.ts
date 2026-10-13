@@ -13,3 +13,8 @@ export function orderTotalLabel(unitPriceCents: number, quantity: number): strin
   const amount = orderAmount(unitPriceCents, quantity);
   return amount === null ? null : formatMxn(amount);
 }
+
+/** Text typed in the quantity field: digits only, at most 3 characters. */
+export function sanitizeQuantityText(raw: string): string {
+  return raw.replace(/\D/g, "").slice(0, 3);
+}
