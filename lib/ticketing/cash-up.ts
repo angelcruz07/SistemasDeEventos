@@ -5,6 +5,8 @@ export interface CashUpOrder {
   paymentMethod: PaymentMethod;
   status: OrderStatus;
   amountCents: number;
+  /** When the order was first paid; set once and kept even if the order is cancelled later. */
+  paidAt: Date | null;
 }
 
 export interface CashUpTicket {
@@ -20,9 +22,9 @@ export interface MethodTotal {
 const METHODS: readonly PaymentMethod[] = ["SPEI", "CASH", "FREE"];
 
 /**
- * Money comes from PAID orders (FREE never adds money); counts come from issued
- * (PAID/CHECKED_IN) tickets. An order keeps its full amount when some of its tickets are
- * cancelled later: there are no refunds, so the cash collected does not change.
+ * Money comes from orders that were ever paid (paidAt set), whatever their status now: cancelling
+ * never refunds, so collected cash stays in the cash-up (FREE never adds money). Counts come from
+ * issued (PAID/CHECKED_IN) tickets, so a cancelled order drops out of the counts but not the money.
  */
 export function computeCashUp(orders: CashUpOrder[], tickets: CashUpTicket[]) {
   const byMethod = Object.fromEntries(METHODS.map((m) => [m, { count: 0, totalCents: 0 }])) as Record<
@@ -30,7 +32,7 @@ export function computeCashUp(orders: CashUpOrder[], tickets: CashUpTicket[]) {
     MethodTotal
   >;
   for (const o of orders) {
-    if (o.status !== "PAID" || o.paymentMethod === "FREE") continue;
+    if (o.paidAt === null || o.paymentMethod === "FREE") continue;
     byMethod[o.paymentMethod].totalCents += o.amountCents;
   }
   let checkedIn = 0;

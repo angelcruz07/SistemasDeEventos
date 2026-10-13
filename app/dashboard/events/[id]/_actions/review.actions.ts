@@ -70,7 +70,7 @@ export async function approveOrder(eventId: string, orderId: string): Promise<Re
           const now = new Date();
           const { count } = await tx.order.updateMany({
             where: { id: order.id, eventId: event.id, status: "PENDING_VALIDATION" },
-            data: { status: "PAID", reviewedAt: now, rejectionReason: null },
+            data: { status: "PAID", reviewedAt: now, paidAt: now, rejectionReason: null },
           });
           if (count !== 1) return null;
 
@@ -174,12 +174,13 @@ export async function cancelOrder(eventId: string, orderId: string): Promise<Rev
     if (!loaded) return NOT_FOUND;
     const { event, order } = loaded;
     if (!canTransitionOrder(order.status, "CANCELLED")) {
-      return { success: false, error: "Este boleto ya no se puede cancelar." };
+      return { success: false, error: "Esta compra ya no se puede cancelar." };
     }
 
     const changed = await prisma.$transaction(async (tx) => {
       const now = new Date();
       // Conditional on the status we saw, so a concurrent change wins.
+      // paidAt is left untouched on purpose: cancelling never refunds, the cash stays in the cash-up.
       const { count } = await tx.order.updateMany({
         where: { id: order.id, eventId: event.id, status: order.status },
         data: { status: "CANCELLED", reviewedAt: now },
@@ -207,7 +208,7 @@ export async function resendOrder(eventId: string, orderId: string): Promise<Rev
     const { event, order } = loaded;
     const kind = resendKindFor(order.status);
     if (!kind) return { success: false, error: "No hay un correo que reenviar para este estado." };
-    if (!order.email) return { success: false, error: "Este boleto no tiene correo." };
+    if (!order.email) return { success: false, error: "Esta compra no tiene correo." };
 
     if (kind === "received") {
       const target = { id: order.id, name: order.name, email: order.email, code: order.code, amountCents: order.amountCents };

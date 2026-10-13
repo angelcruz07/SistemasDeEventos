@@ -34,10 +34,10 @@ export default async function AttendeesPage({
   const [groups, total, paidOrders, issuedTickets, orders] = await Promise.all([
     prisma.order.groupBy({ by: ["status"], where: { eventId: event.id }, _count: { _all: true } }),
     prisma.order.count({ where }),
-    // Cash-up money comes from PAID orders only.
+    // Cash-up money comes from every order that was ever paid, cancelled ones included (no refunds).
     prisma.order.findMany({
-      where: { eventId: event.id, status: "PAID" },
-      select: { paymentMethod: true, status: true, amountCents: true },
+      where: { eventId: event.id, paidAt: { not: null } },
+      select: { paymentMethod: true, status: true, amountCents: true, paidAt: true },
     }),
     prisma.ticket.findMany({
       where: { eventId: event.id, status: { in: ["PAID", "CHECKED_IN"] } },
@@ -60,6 +60,7 @@ export default async function AttendeesPage({
         answers: true,
         rejectionReason: true,
         createdAt: true,
+        paidAt: true,
         // Latest upload only, and never the bytes.
         receipts: {
           orderBy: { uploadedAt: "desc" },

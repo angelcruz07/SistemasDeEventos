@@ -24,6 +24,7 @@ export interface OrderRowInput {
   status: OrderStatus;
   paymentMethod: PaymentMethod;
   createdAt: Date;
+  paidAt: Date | null;
   rejectionReason: string | null;
   answers: unknown;
   receipts: Array<{ id: string; mimeType: string; purgedAt: Date | null; uploadedAt: Date }>;
@@ -50,6 +51,7 @@ export interface OrderRow {
   status: OrderStatus;
   paymentMethod: PaymentMethod;
   createdAt: string;
+  paid: boolean;
   answers: Array<{ label: string; value: string }>;
   rejectionReason: string | null;
   receipt: { id: string; mimeType: string; purged: boolean } | null;
@@ -61,9 +63,15 @@ export interface OrderRow {
 
 /**
  * Tickets that actually exist for the buyer. A quantity-1 order that is still unpaid carries a
- * pre-issue mirror ticket (D4); it is bookkeeping, not an issued ticket, so views skip it.
+ * pre-issue mirror ticket (D4); it is bookkeeping, not an issued ticket, so views skip it. The
+ * same goes for the cancelled mirror of an order that was cancelled without ever being paid.
  */
-export function issuedTickets<T extends { status: TicketStatus }>(tickets: T[]): T[] {
+export function issuedTickets<T extends { status: TicketStatus }>(
+  tickets: T[],
+  order?: { status: OrderStatus; paidAt: Date | null },
+): T[] {
+  // Cancelled before ever being paid: its mirror ticket was never issued, so there is nothing to show.
+  if (order && order.status === "CANCELLED" && order.paidAt === null) return [];
   return tickets.filter((t) => !PRE_ISSUE_STATUSES.includes(t.status));
 }
 
@@ -82,7 +90,7 @@ function toAnswerEntries(answers: unknown): Array<{ label: string; value: string
 
 export function toOrderRow(order: OrderRowInput): OrderRow {
   const latest = [...order.receipts].sort((a, b) => b.uploadedAt.getTime() - a.uploadedAt.getTime())[0];
-  const tickets = issuedTickets(order.tickets)
+  const tickets = issuedTickets(order.tickets, order)
     .sort((a, b) => a.seq - b.seq)
     .map((t) => ({
       id: t.id,
@@ -103,6 +111,7 @@ export function toOrderRow(order: OrderRowInput): OrderRow {
     status: order.status,
     paymentMethod: order.paymentMethod,
     createdAt: formatMx(order.createdAt),
+    paid: order.paidAt !== null,
     answers: toAnswerEntries(order.answers),
     rejectionReason: order.rejectionReason,
     receipt: latest ? { id: latest.id, mimeType: latest.mimeType, purged: latest.purgedAt !== null } : null,

@@ -31,6 +31,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
       quantity: true,
       amountCents: true,
       createdAt: true,
+      paidAt: true,
       answers: true,
       tickets: {
         orderBy: { seq: "asc" },

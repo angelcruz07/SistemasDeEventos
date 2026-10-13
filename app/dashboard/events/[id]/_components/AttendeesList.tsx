@@ -102,7 +102,9 @@ export function AttendeesList({ eventId, rows }: { eventId: string; rows: OrderR
                         run(
                           row.id,
                           () => cancelOrder(eventId, row.id),
-                          `¿Cancelar la compra de ${row.name}? Se cancelarán todos sus boletos.`,
+                          row.paid
+                            ? `¿Cancelar la compra de ${row.name}? Los boletos de esta compra dejarán de ser válidos. El dinero cobrado no se reembolsa automáticamente.`
+                            : `¿Cancelar la compra de ${row.name}? Se cancelarán todos sus boletos.`,
                         )
                       }
                     >

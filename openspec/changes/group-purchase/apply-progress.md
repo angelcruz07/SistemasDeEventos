@@ -59,3 +59,9 @@ Needs DB/e2e: quantity 3 paid flow (register, upload on /order, approve, N email
 Decisions: pre-issue mirror tickets (D4) are bookkeeping and are hidden from the expandable list and the CSV (the unpaid order shows alone); a cancelled never-paid order keeps its cancelled mirror as one cancelled ticket row.
 TDD: RED (14 failures across cash-up/csv/attendees/attendee-rows) then GREEN; suite 409 tests passing. No schema change.
 Needs DB/e2e: attendees list with legacy qty-1 and qty-3 orders, expand tickets, Revisar approve/reject, cancel order and ticket, search by ticket code, status filter, CSV open in Excel, dashboard counts. Requires the PR3 migration applied.
+
+## Follow-up (PR5) - cancel never refunds (D11)
+- [x] Order.paidAt (migration 20261014120000_order_paid_at, additive + backfill) set in approveOrder, free registration and door walk-in; never cleared on cancel.
+- [x] computeCashUp: money from orders with paidAt != null in any status (TDD); CashUpSummary copy updated; cancelOrder confirm for paid orders warns about no automatic refund.
+- [x] issuedTickets/CSV hide the mirror ticket of an order cancelled without ever being paid (TDD). Order-level error messages say "compra".
+TDD: RED (3 failures) then GREEN; suite 414 passing. Needs DB: apply the migration, then check the cash-up with a paid-then-cancelled order.

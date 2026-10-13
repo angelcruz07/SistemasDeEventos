@@ -3,10 +3,12 @@ import { computeCashUp } from "./cash-up";
 
 type Method = "SPEI" | "CASH" | "FREE";
 
-const order = (paymentMethod: Method, status: string, amountCents = 10000) => ({
+const PAID_AT = new Date("2026-10-09T18:30:00Z");
+const order = (paymentMethod: Method, status: string, amountCents = 10000, paidAt: Date | null = status === "PAID" ? PAID_AT : null) => ({
   paymentMethod,
   status: status as never,
   amountCents,
+  paidAt,
 });
 const ticket = (paymentMethod: Method, status: string) => ({ paymentMethod, status: status as never });
 
@@ -68,5 +70,16 @@ describe("computeCashUp", () => {
     );
     expect(r.totalCents).toBe(30000);
     expect(r.paidTotal).toBe(1);
+  });
+
+  it("keeps money of an order cancelled after payment (cancel never refunds)", () => {
+    const r = computeCashUp([order("SPEI", "CANCELLED", 30000, PAID_AT), order("CASH", "CANCELLED", 10000, PAID_AT)], []);
+    expect(r.byMethod.SPEI.totalCents).toBe(30000);
+    expect(r.byMethod.CASH.totalCents).toBe(10000);
+    expect(r.totalCents).toBe(40000);
+  });
+
+  it("ignores a cancelled order that was never paid", () => {
+    expect(computeCashUp([order("SPEI", "CANCELLED", 30000, null)], []).totalCents).toBe(0);
   });
 });

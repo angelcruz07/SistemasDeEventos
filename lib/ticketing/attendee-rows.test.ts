@@ -11,6 +11,7 @@ const base: OrderRowInput = {
   status: "PAID",
   paymentMethod: "SPEI",
   createdAt: new Date("2026-10-09T18:30:00Z"),
+  paidAt: new Date("2026-10-09T19:00:00Z"),
   rejectionReason: null,
   answers: { f1: { label: "Empresa", value: "Acme" }, bad: 5 },
   receipts: [],
@@ -31,6 +32,14 @@ describe("issuedTickets", () => {
   it("drops the pre-issue mirror tickets of unpaid orders", () => {
     const list = [ticket(1, "PENDING_RECEIPT"), ticket(2, "PENDING_VALIDATION"), ticket(3, "REJECTED"), ticket(4, "PAID")];
     expect(issuedTickets(list).map((t) => t.seq)).toEqual([4]);
+  });
+  it("hides the mirror ticket of an order cancelled without ever being paid", () => {
+    const list = [ticket(1, "CANCELLED")];
+    expect(issuedTickets(list, { status: "CANCELLED", paidAt: null })).toEqual([]);
+  });
+  it("keeps cancelled tickets of an order that was paid", () => {
+    const list = [ticket(1, "CANCELLED")];
+    expect(issuedTickets(list, { status: "CANCELLED", paidAt: new Date() })).toHaveLength(1);
   });
   it("keeps cancelled and checked-in tickets", () => {
     expect(issuedTickets([ticket(1, "CANCELLED"), ticket(2, "CHECKED_IN")])).toHaveLength(2);

@@ -33,7 +33,7 @@ export function CashUpSummary({ summary, exportHref }: { summary: CashUp; export
         <Card label="Total cobrado" value={formatted.total} />
       </div>
       <p className="text-xs text-muted-foreground">
-        El dinero cuenta las compras pagadas completas; cancelar un boleto no genera reembolso.
+        Cancelar una compra no la reembolsa: el dinero cobrado se mantiene en el corte.
       </p>
     </section>
   );

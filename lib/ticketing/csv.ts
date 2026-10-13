@@ -23,6 +23,7 @@ export interface CsvOrder {
   quantity: number;
   amountCents: number;
   createdAt: Date;
+  paidAt: Date | null;
   answers: unknown;
   tickets: CsvOrderTicket[];
 }
@@ -84,7 +85,7 @@ export function buildAttendeesCsv(orders: CsvOrder[], schema: FormSchema): strin
       .map(([, a]) => `${a.label}: ${describeValue(a.value)}`)
       .join("; ");
     const answerCells = [...schema.fields.map((f) => describeValue(answers[f.id]?.value)), others];
-    const tickets = issuedTickets(order.tickets).sort((a, b) => a.seq - b.seq);
+    const tickets = issuedTickets(order.tickets, order).sort((a, b) => a.seq - b.seq);
 
     const row = (ticket: CsvOrderTicket | null, first: boolean) => [
       formatShortCode(order.code),

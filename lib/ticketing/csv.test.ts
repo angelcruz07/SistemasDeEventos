@@ -30,6 +30,7 @@ const base: CsvOrder = {
   amountCents: 20000,
   createdAt: new Date("2026-10-09T18:30:00Z"),
   answers: {},
+  paidAt: new Date("2026-10-09T19:00:00Z"),
   tickets: [ticket(1), ticket(2)],
 };
 
@@ -120,5 +121,12 @@ describe("buildAttendeesCsv", () => {
   it("guards injected names", () => {
     const row = lines(buildAttendeesCsv([{ ...base, name: "=HYPERLINK(1)" }], schema))[1];
     expect(row).toContain(",'=HYPERLINK(1),");
+  });
+
+  it("writes no ticket row for an order cancelled without ever being paid", () => {
+    const o: CsvOrder = { ...base, status: "CANCELLED", paidAt: null, quantity: 1, tickets: [ticket(1, { status: "CANCELLED" })] };
+    const rows = lines(buildAttendeesCsv([o], schema)).filter(Boolean);
+    expect(rows).toHaveLength(2);
+    expect(rows[1]).not.toContain("AAA-A01");
   });
 });

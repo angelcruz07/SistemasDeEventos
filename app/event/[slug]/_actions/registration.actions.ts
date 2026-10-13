@@ -140,6 +140,7 @@ export async function registerForEvent(slug: string, input: unknown): Promise<Re
               currency: current.currency,
               paymentMethod: decision.method,
               status: decision.status,
+              paidAt: decision.status === "PAID" ? new Date() : null,
             },
           });
           const ticketBase = {

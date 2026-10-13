@@ -313,6 +313,7 @@ export async function createWalkIn(key: string, input: unknown): Promise<WalkInR
               currency: event.currency,
               paymentMethod: "CASH",
               status: "PAID",
+              paidAt: new Date(),
             },
           });
           return tx.ticket.create({
