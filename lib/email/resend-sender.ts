@@ -1,4 +1,5 @@
 import { Resend } from "resend";
+import { sendInChunks } from "./batch";
 import type { EmailMessage, EmailSender, SendResult } from "./email-sender";
 
 export class ResendSender implements EmailSender {
@@ -25,5 +26,22 @@ export class ResendSender implements EmailSender {
     } catch (error) {
       return { ok: false, error: error instanceof Error ? error.message : "Unknown Resend error" };
     }
+  }
+
+  /** Resend batch endpoint, 100 emails per call (strict validation: a bad email fails its whole call). */
+  sendBatch(messages: readonly EmailMessage[]): Promise<SendResult[]> {
+    return sendInChunks(messages, async (batch) => {
+      const { data, error } = await this.client.batch.send(
+        batch.map((m) => ({ from: this.from, to: m.to, subject: m.subject, html: m.html, text: m.text })),
+      );
+      if (error || !data) {
+        const reason = error?.message ?? "Resend returned no data";
+        return batch.map((): SendResult => ({ ok: false, error: reason }));
+      }
+      return batch.map((_, i): SendResult => {
+        const item = data.data[i];
+        return item ? { ok: true, id: item.id } : { ok: false, error: "Resend returned no id" };
+      });
+    });
   }
 }

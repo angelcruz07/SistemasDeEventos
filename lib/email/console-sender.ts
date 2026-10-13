@@ -7,4 +7,10 @@ export class ConsoleSender implements EmailSender {
     console.info(`[email:console] to=${redactEmails(message.to)} subject=${message.subject}\n${message.text}`);
     return { ok: true, id: "console" };
   }
+
+  async sendBatch(messages: readonly EmailMessage[]): Promise<SendResult[]> {
+    const results: SendResult[] = [];
+    for (const message of messages) results.push(await this.send(message));
+    return results;
+  }
 }

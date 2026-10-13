@@ -1,6 +1,6 @@
 import prisma from "@/app/lib/prisma";
 import { formatEventDate } from "@/lib/datetime";
-import { sendEmail } from "@/lib/email/email-sender";
+import { sendEmail, sendEmails } from "@/lib/email/email-sender";
 import { buildOrderEmail } from "@/lib/email/order-email";
 import { redactEmails } from "@/lib/email/redact";
 import { renderTicketIssued } from "@/lib/email/templates";
@@ -65,6 +65,46 @@ export async function sendTicketEmail(ticket: TicketEmailTicket, event: TicketEm
     const message = error instanceof Error ? redactEmails(error.message) : "unknown error";
     console.error(`Ticket email crashed (ticket=${ticket.id}): ${message}`);
     return false;
+  }
+}
+
+/**
+ * Sends one ticket email per ticket through the batch endpoint (design D9) and records
+ * ticketEmailSentAt for the ones that went out. Never throws. Returns how many were sent.
+ */
+export async function sendTicketEmails(tickets: readonly TicketEmailTicket[], event: TicketEmailEvent): Promise<number> {
+  if (tickets.length === 0) return 0;
+  try {
+    const { signingSecret, appUrl } = getTicketingEnv();
+    const messages = tickets.map((ticket) => {
+      const token = signTicketToken(ticket.id, signingSecret);
+      const rendered = renderTicketIssued({
+        name: ticket.name,
+        eventTitle: event.title,
+        shortCode: formatShortCode(ticket.code),
+        ticketUrl: `${appUrl}/ticket/${token}`,
+        qrUrl: `${appUrl}/api/tickets/${token}/qr.png`,
+        dateText: formatEventDate(event.date),
+        time: event.time,
+        location: event.location,
+      });
+      return { ...rendered, to: ticket.email };
+    });
+
+    const results = await sendEmails(messages);
+    const sentIds: string[] = [];
+    results.forEach((result, i) => {
+      if (result.ok) sentIds.push(tickets[i].id);
+      else console.error(`Ticket email failed (ticket=${tickets[i].id}): ${redactEmails(result.error)}`);
+    });
+    if (sentIds.length > 0) {
+      await prisma.ticket.updateMany({ where: { id: { in: sentIds } }, data: { ticketEmailSentAt: new Date() } });
+    }
+    return sentIds.length;
+  } catch (error) {
+    const message = error instanceof Error ? redactEmails(error.message) : "unknown error";
+    console.error(`Ticket batch email crashed (tickets=${tickets.length}): ${message}`);
+    return 0;
   }
 }
 

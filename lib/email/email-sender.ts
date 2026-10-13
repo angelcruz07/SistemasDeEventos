@@ -14,6 +14,8 @@ export type SendResult = { ok: true; id: string } | { ok: false; error: string }
 /** Port implemented by the Resend and console senders. Implementations must not throw. */
 export interface EmailSender {
   send(message: EmailMessage): Promise<SendResult>;
+  /** One result per message, in input order. Chunks internally (Resend allows 100 per call). */
+  sendBatch(messages: readonly EmailMessage[]): Promise<SendResult[]>;
 }
 
 /** Resend when configured; console only outside production (env enforces the key in production). */
@@ -29,5 +31,15 @@ export async function sendEmail(message: EmailMessage): Promise<SendResult> {
     return await createEmailSender().send(message);
   } catch (error) {
     return { ok: false, error: error instanceof Error ? error.message : "Unknown email error" };
+  }
+}
+
+/** Never throws: a configuration or provider problem fails every message of the batch. */
+export async function sendEmails(messages: readonly EmailMessage[]): Promise<SendResult[]> {
+  try {
+    return await createEmailSender().sendBatch(messages);
+  } catch (error) {
+    const reason = error instanceof Error ? error.message : "Unknown email error";
+    return messages.map((): SendResult => ({ ok: false, error: reason }));
   }
 }

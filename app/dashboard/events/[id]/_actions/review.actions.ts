@@ -7,7 +7,7 @@ import type { Prisma } from "@/app/generated/prisma/client";
 import prisma from "@/app/lib/prisma";
 import { getOwnedEvent } from "@/lib/server/guards";
 import { lockEvent } from "@/lib/server/orders";
-import { sendOrderEmail, sendTicketEmail } from "@/lib/server/ticket-email";
+import { sendOrderEmail, sendTicketEmail, sendTicketEmails } from "@/lib/server/ticket-email";
 import { PRE_ISSUE_STATUSES, canTransitionOrder, planIssuance } from "@/lib/ticketing/order";
 import { isCodeCollision } from "@/lib/ticketing/registration";
 import { canCancel, resendKindFor, validateRejectReason } from "@/lib/ticketing/review";
@@ -122,11 +122,9 @@ export async function approveOrder(eventId: string, orderId: string): Promise<Re
     );
     if (!issued) return STALE;
 
-    for (const ticket of issued) {
-      if (!ticket.email) continue;
-      const email = ticket.email;
-      after(() => sendTicketEmail({ id: ticket.id, name: ticket.name, email, code: ticket.code }, event));
-    }
+    // One batch for the whole order (design D9): sequential sends would risk the function timeout.
+    const recipients = issued.flatMap((t) => (t.email ? [{ id: t.id, name: t.name, email: t.email, code: t.code }] : []));
+    if (recipients.length > 0) after(() => sendTicketEmails(recipients, event));
     return done(event.id);
   } catch (error) {
     console.error("approveOrder failed:", error instanceof Error ? error.name : "unknown");
@@ -221,7 +219,8 @@ export async function resendOrder(eventId: string, orderId: string): Promise<Rev
         orderBy: { seq: "asc" },
         select: { id: true, name: true, code: true },
       });
-      for (const ticket of tickets) after(() => sendTicketEmail({ ...ticket, email }, event));
+      const recipients = tickets.map((t) => ({ ...t, email }));
+      if (recipients.length > 0) after(() => sendTicketEmails(recipients, event));
     }
     return done(event.id);
   } catch (error) {
