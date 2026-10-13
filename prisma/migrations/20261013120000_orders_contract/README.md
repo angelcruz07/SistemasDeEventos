@@ -40,3 +40,14 @@ WHERE o."quantity" = 1
 SELECT count(*) FROM "Order" o WHERE o."quantity" = 1 AND o."status" = 'PAID'
   AND NOT EXISTS (SELECT 1 FROM "Ticket" t WHERE t."orderId" = o."id");
 ```
+
+## Extra pre-deploy checks (both must return 0)
+
+```sql
+-- Orderless legacy tickets whose code already belongs to another order (would abort the backfill)
+SELECT count(*) FROM "Ticket" t JOIN "Order" o ON o.code = t.code AND o.id <> t.id WHERE t."orderId" IS NULL;
+-- Informational: cancelled orders whose ticket was already scanned (the drift sync keeps them CANCELLED)
+SELECT count(*) FROM "Order" o JOIN "Ticket" t ON t.id = o.id WHERE o.status::text = 'CANCELLED' AND t.status::text = 'CHECKED_IN';
+```
+
+Dry-run (2026-10-13, testing DB, rolled back): 3 orphan tickets / 1 orphan receipt → 0 / 0, drifted orders 1 → 0 (LGCY01 → PAID), email unique and Receipt.ticketId dropped.

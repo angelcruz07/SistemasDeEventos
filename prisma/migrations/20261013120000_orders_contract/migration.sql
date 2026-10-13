@@ -39,6 +39,8 @@ FROM "Ticket" t
 WHERE t."id" = o."id"
   AND t."orderId" = o."id"
   AND o."quantity" = 1
+  -- An organizer may cancel an order whose ticket was already scanned; keep that cancellation.
+  AND NOT (o."status"::text = 'CANCELLED' AND t."status"::text = 'CHECKED_IN')
   AND (
     o."status"::text <> CASE t."status"::text WHEN 'CHECKED_IN' THEN 'PAID' ELSE t."status"::text END
     OR o."rejectionReason" IS DISTINCT FROM t."rejectionReason"
