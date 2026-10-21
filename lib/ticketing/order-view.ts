@@ -5,6 +5,7 @@ export type OrderView =
   | { kind: "upload"; rejectionReason: string | null }
   | { kind: "review" }
   | { kind: "tickets" }
+  | { kind: "cash" }
   | { kind: "cancelled" };
 
 /** What the buyer-facing order page shows for each status. */
@@ -23,6 +24,8 @@ export function orderViewFor(order: {
       return { kind: "review" };
     case "PAID":
       return { kind: "tickets" };
+    case "PENDING_CASH":
+      return { kind: "cash" };
     case "CANCELLED":
       return { kind: "cancelled" };
   }

@@ -23,6 +23,9 @@ describe("orderViewFor", () => {
   it("shows cancelled", () => {
     expect(orderViewFor({ ...base, status: "CANCELLED" })).toEqual({ kind: "cancelled" });
   });
+  it("shows the cash notice and the tickets of a cash pre-registration", () => {
+    expect(orderViewFor({ ...base, status: "PENDING_CASH" })).toEqual({ kind: "cash" });
+  });
   it.each(["PENDING_RECEIPT", "REJECTED", "PENDING_VALIDATION", "PAID"] as const)(
     "shows cancelled for %s when the event is cancelled",
     (status) => {
@@ -42,7 +45,7 @@ describe("ticketRedirectsToOrder", () => {
   it.each(["PENDING_RECEIPT", "PENDING_VALIDATION", "REJECTED"] as const)("redirects a pre-issue %s ticket", (s) => {
     expect(ticketRedirectsToOrder(s)).toBe(true);
   });
-  it.each(["PAID", "CHECKED_IN", "CANCELLED"] as const)("keeps an issued or cancelled %s ticket", (s) => {
+  it.each(["PAID", "CHECKED_IN", "CANCELLED", "PENDING_CASH"] as const)("keeps an issued or cancelled %s ticket", (s) => {
     expect(ticketRedirectsToOrder(s)).toBe(false);
   });
 });

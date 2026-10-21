@@ -10,9 +10,9 @@ import { hitRateLimit } from "@/lib/server/rate-limit";
 import { getClientIp, rateLimitKey } from "@/lib/server/request-keys";
 import { countHeld } from "@/lib/server/held";
 import { lockEvent } from "@/lib/server/orders";
-import { sendOrderEmail, sendTicketEmails } from "@/lib/server/ticket-email";
+import { sendCashPreregistrationEmail, sendOrderEmail, sendTicketEmails } from "@/lib/server/ticket-email";
 import { parseFormSchema, validateAnswers } from "@/lib/ticketing/form-schema";
-import { ORDER_STATUSES, decideOrder, isOpenOrder, parseQuantity } from "@/lib/ticketing/order";
+import { ORDER_STATUSES, decideOrder, isOpenOrder, parsePaymentChoice, parseQuantity } from "@/lib/ticketing/order";
 import { isUniqueViolation } from "@/lib/ticketing/registration";
 import { createWithUniqueCode, generateDistinctCodes } from "@/lib/ticketing/short-code";
 
@@ -22,6 +22,8 @@ export interface RegistrationInput {
   fields: Record<string, unknown>;
   /** Number of tickets; omitted means 1. Validated on the server. */
   quantity?: unknown;
+  /** "SPEI" or "CASH" (cash pre-registration) for a paid event; omitted means the first method offered. */
+  paymentMethod?: unknown;
 }
 
 export type RegisterResult =
@@ -44,6 +46,7 @@ const REFUSALS = {
   full: "Este evento ya no tiene lugares disponibles.",
   // Never reveals how many spots remain.
   quantity: "No hay lugares suficientes para esa cantidad.",
+  method: "Ese método de pago no está disponible para este evento.",
 } as const;
 
 function isInput(value: unknown): value is RegistrationInput {
@@ -92,6 +95,7 @@ export async function registerForEvent(slug: string, input: unknown): Promise<Re
     const { name, email, answers } = validated.data;
     const quantity = parseQuantity(input.quantity ?? 1);
     if (quantity === null) return { success: false, error: "Elige una cantidad válida de boletos." };
+    const paymentChoice = parsePaymentChoice(input.paymentMethod);
 
     const emailKey = rateLimitKey("register:email", `${event.id}:${email}`);
     if (!(await hitRateLimit(emailKey, MAX_PER_EMAIL, WINDOW_MS)).allowed) return RATE_LIMITED;
@@ -117,6 +121,7 @@ export async function registerForEvent(slug: string, input: unknown): Promise<Re
             held: await countHeld(tx, event.id),
             quantity,
             existing: openOrder,
+            method: paymentChoice,
           });
           if (decision.kind === "refused") return decision;
           if (decision.kind === "duplicate") {
@@ -153,21 +158,24 @@ export async function registerForEvent(slug: string, input: unknown): Promise<Re
             currency: current.currency,
           };
           let issued: { id: string; name: string; email: string; code: string }[] = [];
+          // TicketStatus has every status a new order can start in (PENDING_RECEIPT, PENDING_CASH, PAID).
+          const ticketStatus = decision.status as "PENDING_RECEIPT" | "PENDING_CASH" | "PAID";
           if (quantity === 1) {
-            // Mirror ticket: same id and code as the order (PAID at once for a free event).
+            // Mirror ticket: same id and code as the order (PAID at once for a free event, PENDING_CASH
+            // with a working QR for a cash pre-registration).
             await tx.ticket.create({
-              data: { ...ticketBase, id, orderId: id, seq: 1, code, status: decision.status },
+              data: { ...ticketBase, id, orderId: id, seq: 1, code, status: ticketStatus },
             });
             if (decision.issueNow > 0) issued = [{ id, name, email, code }];
           } else if (decision.issueNow > 0) {
-            // Free N-ticket order: all tickets exist from the start. A paid one gets none until approval (D3).
+            // Free or cash N-ticket order: all tickets exist from the start. A SPEI one gets none until approval (D3).
             const rows = ticketCodes.slice(0, quantity).map((ticketCode, i) => ({
               ...ticketBase,
               id: randomUUID(),
               orderId: id,
               seq: i + 1,
               code: ticketCode,
-              status: "PAID" as const,
+              status: ticketStatus,
             }));
             await tx.ticket.createMany({ data: rows });
             issued = rows.map((r) => ({ id: r.id, name, email, code: r.code }));
@@ -184,10 +192,13 @@ export async function registerForEvent(slug: string, input: unknown): Promise<Re
     // registration, revealing which emails are registered. the senders never throw.
     const { order, event: emailEvent } = outcome;
     const issued = outcome.kind === "created" ? outcome.issued : [];
-    if (issued.length > 0) {
+    const target = { id: order.id, name: order.name, email, code: order.code, amountCents: order.amountCents };
+    if (order.status === "PENDING_CASH") {
+      // New or repeated cash pre-registration: the email carries the QR codes and the amount due at the door.
+      after(() => sendCashPreregistrationEmail(target, emailEvent));
+    } else if (issued.length > 0) {
       after(() => sendTicketEmails(issued, emailEvent));
     } else if (order.status !== "PAID" && order.status !== "CANCELLED") {
-      const target = { id: order.id, name: order.name, email, code: order.code, amountCents: order.amountCents };
       after(() => sendOrderEmail("received", target, emailEvent));
     }
     return { success: true };

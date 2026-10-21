@@ -103,6 +103,13 @@ export function TicketingForm({ eventId, initial }: { eventId: string; initial: 
             checked={values.allowCash}
             onChange={(v) => set("allowCash", v)}
           />
+          <Toggle
+            id="allowCashPrereg"
+            label="Efectivo con pre-registro en línea"
+            hint="El asistente se registra en la página del evento, recibe su QR por correo y paga en efectivo en la entrada. El staff cobra al escanear el QR (activa el acceso de puerta)."
+            checked={values.allowCashPrereg}
+            onChange={(v) => set("allowCashPrereg", v)}
+          />
           <FieldError message={fieldErrors.methods} />
         </CardContent>
       </Card>

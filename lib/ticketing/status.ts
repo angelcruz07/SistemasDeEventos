@@ -7,6 +7,7 @@ export const TICKET_STATUSES: readonly TicketStatus[] = [
   "CHECKED_IN",
   "REJECTED",
   "CANCELLED",
+  "PENDING_CASH",
 ];
 
 const TRANSITIONS: Record<TicketStatus, readonly TicketStatus[]> = {
@@ -17,6 +18,8 @@ const TRANSITIONS: Record<TicketStatus, readonly TicketStatus[]> = {
   REJECTED: ["PENDING_VALIDATION", "CANCELLED"],
   CHECKED_IN: [],
   CANCELLED: [],
+  // Cash pre-registration: the door collects (-> PAID, the scanned one -> CHECKED_IN) or the organizer cancels.
+  PENDING_CASH: ["PAID", "CHECKED_IN", "CANCELLED"],
 };
 
 export function canTransition(from: TicketStatus, to: TicketStatus): boolean {
@@ -35,6 +38,10 @@ export function initialStatus({ method, priceCents, channel }: InitialStatusInpu
     if (method !== "CASH") throw new Error("Door registrations must be CASH");
     return "CHECKED_IN";
   }
-  if (method === "CASH") throw new Error("CASH is only available at the door");
+  if (method === "CASH") {
+    // Public cash = pre-registration: the ticket (and its QR) exists now, the money is collected at the door.
+    if (priceCents === 0) throw new Error("A free event has nothing to collect in cash");
+    return "PENDING_CASH";
+  }
   return priceCents === 0 ? "PAID" : "PENDING_RECEIPT";
 }

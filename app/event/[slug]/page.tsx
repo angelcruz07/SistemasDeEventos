@@ -114,6 +114,7 @@ export default async function EventPage({
                   schema={event.formSchema}
                   priceLabel={priceLabel}
                   priceCents={event.priceCents}
+                  paymentMethods={event.paymentMethods}
                   accent={{ background: theme.accent, color: theme.accentText }}
                 />
               ) : (

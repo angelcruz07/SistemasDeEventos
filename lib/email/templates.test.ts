@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { renderRegistrationReceived, renderTicketIssued, renderTicketRejected } from "./templates";
+import { renderCashPreregistration, renderRegistrationReceived, renderTicketIssued, renderTicketRejected } from "./templates";
 
 const base = {
   name: "Ana",
@@ -96,5 +96,43 @@ describe("renderTicketRejected", () => {
     expect(m.html).toContain("Monto &lt;incorrecto&gt; &amp; borroso");
     expect(m.text).toContain("Monto <incorrecto> & borroso");
     expect(m.text).toContain("https://app.test/ticket/abc.def");
+  });
+});
+
+describe("renderCashPreregistration", () => {
+  const data = {
+    name: "Ana <b>",
+    eventTitle: "Concierto\nBcc: x@y.com",
+    shortCode: "7K3-Q9M",
+    amount: "$700.00",
+    orderUrl: "https://example.com/order/abc",
+    dateText: "sábado 25 de octubre",
+    time: "20:00",
+    location: "Toluca",
+    tickets: [
+      { label: "Boleto 1 de 2", shortCode: "AAA-BBB", qrUrl: "https://example.com/api/tickets/t1/qr.png", ticketUrl: "https://example.com/ticket/t1" },
+      { label: "Boleto 2 de 2", shortCode: "CCC-DDD", qrUrl: "https://example.com/api/tickets/t2/qr.png", ticketUrl: "https://example.com/ticket/t2" },
+    ],
+  };
+
+  it("tells the amount to pay in cash at the door and shows one QR per ticket", () => {
+    const email = renderCashPreregistration(data);
+    expect(email.html).toContain("$700.00");
+    expect(email.html).toContain("efectivo en la entrada");
+    expect(email.html).toContain('src="https://example.com/api/tickets/t1/qr.png"');
+    expect(email.html).toContain('src="https://example.com/api/tickets/t2/qr.png"');
+    expect(email.text).toContain("https://example.com/ticket/t2");
+    expect(email.text).toContain("https://example.com/order/abc");
+  });
+
+  it("escapes values and keeps the subject on one line", () => {
+    const email = renderCashPreregistration(data);
+    expect(email.html).toContain("Ana &lt;b&gt;");
+    expect(email.subject).not.toMatch(/[\r\n]/);
+  });
+
+  it("refuses non-http QR links", () => {
+    const bad = { ...data, tickets: [{ ...data.tickets[0], qrUrl: "javascript:alert(1)" }] };
+    expect(() => renderCashPreregistration(bad)).toThrow();
   });
 });

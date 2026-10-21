@@ -7,20 +7,38 @@ export interface RegistrationEvent {
   capacity: number | null;
   priceCents: number;
   allowSpei: boolean;
+  /** Online pre-registration paid in cash at the door. */
+  allowCashPrereg: boolean;
 }
 
 export type RefusalReason = "closed" | "full";
 
 /**
- * Whether new public registrations are accepted. A paid event without SPEI is
- * treated as closed: cash is a door-only method and never public.
+ * Payment methods the public form offers for a paid event (empty for a free one).
+ * `allowCash` (door walk-ins) is never public; `allowCashPrereg` is.
+ */
+export function publicPaymentMethods(event: {
+  priceCents: number;
+  allowSpei: boolean;
+  allowCashPrereg: boolean;
+}): ("SPEI" | "CASH")[] {
+  if (event.priceCents === 0) return [];
+  const methods: ("SPEI" | "CASH")[] = [];
+  if (event.allowSpei) methods.push("SPEI");
+  if (event.allowCashPrereg) methods.push("CASH");
+  return methods;
+}
+
+/**
+ * Whether new public registrations are accepted. A paid event with no public method
+ * (neither SPEI nor cash pre-registration) is treated as closed: door-only cash is never public.
  */
 export function registrationAvailability(
   event: RegistrationEvent,
   held: number,
 ): { open: true } | { open: false; reason: RefusalReason } {
   if (event.isCancelled) return { open: false, reason: "closed" };
-  if (event.priceCents > 0 && !event.allowSpei) return { open: false, reason: "closed" };
+  if (event.priceCents > 0 && publicPaymentMethods(event).length === 0) return { open: false, reason: "closed" };
   return isRegistrationOpen(event, held);
 }
 

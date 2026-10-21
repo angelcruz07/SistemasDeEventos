@@ -19,6 +19,7 @@ import { hitRateLimit } from "@/lib/server/rate-limit";
 import { getClientIp, rateLimitKey } from "@/lib/server/request-keys";
 import { checkInDecision, escapeLike, parseScanInput, parseSearchQuery, parseWalkIn, type CheckInDecision, type DoorErrorCode } from "@/lib/ticketing/checkin";
 import { toDoorTicketView, type DoorTicketView } from "@/lib/ticketing/door-view";
+import { formatMxn } from "@/lib/ticketing/money";
 import { ORDER_STATUSES, blocksWalkIn } from "@/lib/ticketing/order";
 import { isUniqueViolation } from "@/lib/ticketing/registration";
 import { createWithUniqueCode, generateShortCode } from "@/lib/ticketing/short-code";
@@ -129,6 +130,8 @@ const TICKET_SELECT = {
   answers: true,
   checkedInAt: true,
   checkedInBy: true,
+  // Only for the cash decision (amount due); toDoorTicketView never copies it into the view.
+  order: { select: { amountCents: true, quantity: true } },
 } as const;
 
 export interface DoorLookupEntry {
@@ -253,6 +256,75 @@ export async function checkIn(key: string, ticketId: string): Promise<CheckInRes
   } catch (error) {
     console.error("Error checking in:", error);
     return { success: false, error: "No se pudo registrar el acceso. Inténtalo de nuevo." };
+  }
+}
+
+export type CollectCashResult =
+  | { success: true; ticket: DoorTicketView; amount: string; otherTickets: number }
+  | { success: false; error: string; code?: DoorErrorCode; ticket?: DoorTicketView; decision?: CheckInDecision };
+
+/**
+ * Cash pre-registration at the door: staff collected the order amount. In one transaction the
+ * order becomes PAID (paidAt = now, so the cash-up counts it under CASH), every PENDING_CASH ticket
+ * of the order becomes PAID, and the scanned one is checked in. Conditional updates make a double
+ * tap or two staff members win only once.
+ */
+export async function collectCashAndCheckIn(key: string, ticketId: string): Promise<CollectCashResult> {
+  try {
+    const outcome = await requireDoorSession(key);
+    if (outcome.error !== undefined) return { success: false, error: outcome.error, code: outcome.code };
+    const { session } = outcome;
+    if (typeof ticketId !== "string" || ticketId.length === 0 || ticketId.length > 100) {
+      return { success: false, error: NOT_FOUND };
+    }
+    const eventId = session.access.eventId;
+
+    const collected = await prisma.$transaction(async (tx) => {
+      await lockEvent(tx, eventId);
+      const ticket = await tx.ticket.findFirst({
+        where: { id: ticketId, eventId, status: "PENDING_CASH", event: { isCancelled: false } },
+        select: { orderId: true, order: { select: { amountCents: true } } },
+      });
+      if (!ticket) return null;
+
+      const now = new Date();
+      const { count } = await tx.order.updateMany({
+        where: { id: ticket.orderId, eventId, status: "PENDING_CASH" },
+        data: { status: "PAID", paidAt: now, reviewedAt: now },
+      });
+      if (count !== 1) return null;
+      const paid = await tx.ticket.updateMany({
+        where: { orderId: ticket.orderId, status: "PENDING_CASH" },
+        data: { status: "PAID", reviewedAt: now },
+      });
+      await tx.ticket.updateMany({
+        where: { id: ticketId, status: "PAID" },
+        data: { status: "CHECKED_IN", checkedInAt: now, checkedInBy: session.staffName },
+      });
+      return { amountCents: ticket.order.amountCents, otherTickets: Math.max(0, paid.count - 1) };
+    }, { maxWait: 5000, timeout: 10000 });
+
+    const ticket = await prisma.ticket.findFirst({ where: { id: ticketId, eventId }, select: TICKET_SELECT });
+    if (!ticket) return { success: false, error: NOT_FOUND };
+    if (collected) {
+      return {
+        success: true,
+        ticket: toDoorTicketView(ticket),
+        amount: formatMxn(collected.amountCents),
+        otherTickets: collected.otherTickets,
+      };
+    }
+    // Lost the race or the status changed meanwhile (cancelled, already collected...): report the current state.
+    const decision = checkInDecision(ticket, eventId, { eventCancelled: session.eventCancelled });
+    return {
+      success: false,
+      error: decision.kind === "allow" ? "El pago ya se había registrado. Puedes dar acceso." : decision.message,
+      ticket: toDoorTicketView(ticket),
+      decision,
+    };
+  } catch (error) {
+    console.error("Error collecting cash:", error instanceof Error ? error.name : "unknown");
+    return { success: false, error: "No se pudo registrar el pago. Inténtalo de nuevo." };
   }
 }
 

@@ -1,6 +1,6 @@
 import type { OrderStatus, PaymentMethod, TicketStatus } from "@/app/generated/prisma/enums";
-import { policyFor } from "./payment";
-import { registrationAvailability, type RegistrationEvent } from "./registration";
+import { policyFor, type PublicPaymentChoice } from "./payment";
+import { publicPaymentMethods, registrationAvailability, type RegistrationEvent } from "./registration";
 
 /** Per-order ticket limit when the event has no capacity. */
 export const MAX_QUANTITY_UNCAPPED = 50;
@@ -14,6 +14,7 @@ export const ORDER_STATUSES: readonly OrderStatus[] = [
   "PAID",
   "REJECTED",
   "CANCELLED",
+  "PENDING_CASH",
 ];
 
 /** Accepts a positive safe integer or a plain digit string; anything else is null. */
@@ -49,10 +50,20 @@ export function orderAmount(unitPriceCents: number, quantity: number): number | 
 /**
  * An OPEN order blocks a second one for the same (event, email). REJECTED counts as
  * open (organizer decision): the buyer re-uploads on the same order instead of
- * registering again.
+ * registering again. A cash pre-registration (PENDING_CASH) is open until the door collects it.
  */
 export function isOpenOrder(status: OrderStatus): boolean {
-  return status === "PENDING_RECEIPT" || status === "PENDING_VALIDATION" || status === "REJECTED";
+  return (
+    status === "PENDING_RECEIPT" ||
+    status === "PENDING_VALIDATION" ||
+    status === "REJECTED" ||
+    status === "PENDING_CASH"
+  );
+}
+
+/** Accepts "SPEI" or "CASH" from the public form; anything else means "no explicit choice". */
+export function parsePaymentChoice(input: unknown): PublicPaymentChoice | null {
+  return input === "SPEI" || input === "CASH" ? input : null;
 }
 
 /**
@@ -63,7 +74,7 @@ export function blocksWalkIn(status: OrderStatus): boolean {
   return isOpenOrder(status) || status === "PAID";
 }
 
-export type OrderRefusal = "closed" | "full" | "quantity";
+export type OrderRefusal = "closed" | "full" | "quantity" | "method";
 
 export type OrderDecision =
   | { kind: "duplicate"; orderId: string }
@@ -79,6 +90,8 @@ export function decideOrder(input: {
   held: number;
   quantity: number;
   existing: { id: string; status: OrderStatus } | null;
+  /** Buyer's pick for a paid event. Omitted: the first method the event offers (SPEI before cash). */
+  method?: PublicPaymentChoice | null;
 }): OrderDecision {
   const { event, held, quantity, existing } = input;
   // A cancelled event accepts nothing, not even link recovery.
@@ -97,15 +110,20 @@ export function decideOrder(input: {
   const amountCents = orderAmount(event.priceCents, quantity);
   if (amountCents === null) return { kind: "refused", reason: "quantity" };
 
-  const policy = policyFor("public", event.priceCents);
-  // initialStatus only yields PENDING_RECEIPT or PAID on the public channel; both exist in OrderStatus.
+  const offered = publicPaymentMethods(event);
+  const choice = input.method ?? offered[0];
+  if (event.priceCents > 0 && (!choice || !offered.includes(choice))) return { kind: "refused", reason: "method" };
+
+  const policy = policyFor("public", event.priceCents, choice);
+  // On the public channel initialStatus only yields PENDING_RECEIPT, PENDING_CASH or PAID; all exist in OrderStatus.
   const status = policy.initialStatus(event.priceCents) as OrderStatus;
   return {
     kind: "create",
     status,
     method: policy.method,
     amountCents,
-    issueNow: status === "PAID" ? quantity : 0,
+    // Free orders are issued PAID; cash pre-registrations get their (PENDING_CASH) tickets now so the QR can be emailed.
+    issueNow: status === "PAID" || status === "PENDING_CASH" ? quantity : 0,
   };
 }
 
@@ -131,6 +149,8 @@ export const ORDER_TRANSITIONS: Record<OrderStatus, readonly OrderStatus[]> = {
   PAID: ["CANCELLED"],
   REJECTED: ["PENDING_VALIDATION", "CANCELLED"],
   CANCELLED: [],
+  // Collected at the door, or cancelled by the organizer (a no-show frees its spots).
+  PENDING_CASH: ["PAID", "CANCELLED"],
 };
 
 export function canTransitionOrder(from: OrderStatus, to: OrderStatus): boolean {

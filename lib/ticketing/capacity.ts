@@ -5,7 +5,14 @@ export const HOLDING_STATUSES: readonly TicketStatus[] = [
   "PENDING_VALIDATION",
   "PAID",
   "CHECKED_IN",
+  "PENDING_CASH",
 ];
+
+/**
+ * Ticket statuses that hold one spot each in `countHeld` (D5): issued tickets plus cash
+ * pre-registrations, whose QR already exists and whose buyer is expected at the door.
+ */
+export const SPOT_TICKET_STATUSES: readonly TicketStatus[] = ["PAID", "CHECKED_IN", "PENDING_CASH"];
 
 export function countHeld(statuses: readonly TicketStatus[]): number {
   return statuses.filter((s) => HOLDING_STATUSES.includes(s)).length;

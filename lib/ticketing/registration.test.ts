@@ -1,5 +1,27 @@
 import { describe, expect, it } from "vitest";
-import { emailKindFor, isCodeCollision, isUniqueViolation } from "./registration";
+import { emailKindFor, isCodeCollision, isUniqueViolation, publicPaymentMethods, registrationAvailability } from "./registration";
+
+describe("publicPaymentMethods", () => {
+  const paid = { priceCents: 35_000, allowSpei: true, allowCashPrereg: false };
+  it("offers SPEI and/or cash pre-registration for a paid event, SPEI first", () => {
+    expect(publicPaymentMethods(paid)).toEqual(["SPEI"]);
+    expect(publicPaymentMethods({ ...paid, allowCashPrereg: true })).toEqual(["SPEI", "CASH"]);
+    expect(publicPaymentMethods({ ...paid, allowSpei: false, allowCashPrereg: true })).toEqual(["CASH"]);
+  });
+  it("offers nothing for a free event", () => {
+    expect(publicPaymentMethods({ ...paid, priceCents: 0, allowCashPrereg: true })).toEqual([]);
+  });
+});
+
+describe("registrationAvailability", () => {
+  const event = { registrationOpen: true, isCancelled: false, capacity: null, priceCents: 35_000, allowSpei: false, allowCashPrereg: false };
+  it("is closed for a paid event whose only cash is at the door", () => {
+    expect(registrationAvailability(event, 0)).toEqual({ open: false, reason: "closed" });
+  });
+  it("is open for a paid event with cash pre-registration only", () => {
+    expect(registrationAvailability({ ...event, allowCashPrereg: true }, 0)).toEqual({ open: true });
+  });
+});
 
 describe("emailKindFor", () => {
   it("maps statuses to the email to (re)send", () => {

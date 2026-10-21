@@ -24,6 +24,10 @@ describe("ticketViewFor", () => {
   it("shows cancelled", () => {
     expect(ticketViewFor({ ...base, status: "CANCELLED" })).toEqual({ kind: "cancelled" });
   });
+  it("shows the QR of a cash pre-registration with the pending-payment notice", () => {
+    expect(ticketViewFor({ ...base, status: "PENDING_CASH" })).toEqual({ kind: "ticket", checkedIn: false, cashPending: true });
+    expect(ticketViewFor({ ...base, status: "PENDING_CASH", eventCancelled: true })).toEqual({ kind: "cancelled" });
+  });
 });
 
 describe("ticketViewFor cancelled event", () => {

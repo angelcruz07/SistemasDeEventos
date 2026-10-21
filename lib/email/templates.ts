@@ -34,6 +34,28 @@ export interface TicketRejectedData extends BaseData {
   reason: string;
 }
 
+export interface CashPreregistrationTicket {
+  /** e.g. "Boleto 1 de 2"; empty for a single ticket. */
+  label: string;
+  shortCode: string;
+  qrUrl: string;
+  ticketUrl: string;
+}
+
+export interface CashPreregistrationData {
+  name: string;
+  eventTitle: string;
+  /** Formatted order code. */
+  shortCode: string;
+  /** Pre-formatted amount to pay in cash at the door, e.g. "$700.00". */
+  amount: string;
+  orderUrl: string;
+  dateText: string;
+  time: string;
+  location: string;
+  tickets: CashPreregistrationTicket[];
+}
+
 const HTML_ESCAPES: Record<string, string> = {
   "&": "&amp;",
   "<": "&lt;",
@@ -124,6 +146,47 @@ Código: ${data.shortCode}
 
 Abre tu boleto y muestra el código QR en la entrada:
 ${data.ticketUrl}`,
+  };
+}
+
+/**
+ * Pre-registration paid in cash: the QR codes are already valid for the door, where staff
+ * collect the amount before letting the attendee in.
+ */
+export function renderCashPreregistration(data: CashPreregistrationData): RenderedEmail {
+  const ticketsHtml = data.tickets
+    .map(
+      (t) => `<div style="margin:16px 0;padding:12px;border:1px solid #ddd;border-radius:8px">
+${t.label ? `<p style="margin:0 0 4px"><strong>${escapeHtml(t.label)}</strong></p>` : ""}<p style="margin:0">Código: <strong>${escapeHtml(t.shortCode)}</strong></p>
+<p><img src="${escapeHtml(assertHttpUrl(t.qrUrl))}" alt="Código QR de tu pre-registro" width="200" height="200"></p>
+<p style="margin:0"><a href="${escapeHtml(assertHttpUrl(t.ticketUrl))}">Abrir este boleto</a></p>
+</div>`,
+    )
+    .join("\n");
+  const ticketsText = data.tickets
+    .map((t) => `${t.label ? `${t.label}: ` : ""}${t.shortCode}\n${t.ticketUrl}`)
+    .join("\n\n");
+
+  return {
+    subject: subjectLine(`Tu pre-registro: ${data.eventTitle}`),
+    html: layout(
+      "Tu pre-registro está listo",
+      `<p>Hola ${escapeHtml(data.name)}, apartamos tu lugar en <strong>${escapeHtml(data.eventTitle)}</strong>.</p>
+<p>${escapeHtml(data.dateText)}, ${escapeHtml(data.time)}<br>${escapeHtml(data.location)}</p>
+<p style="padding:12px;background:#fff7ed;border:1px solid #fdba74;border-radius:8px">Paga <strong>${escapeHtml(data.amount)}</strong> en efectivo en la entrada y muestra tu código QR. Tu pedido es <strong>${escapeHtml(data.shortCode)}</strong>.</p>
+${ticketsHtml}
+${button(data.orderUrl, "Ver mi pre-registro")}`,
+    ),
+    text: `Hola ${data.name}, apartamos tu lugar en ${data.eventTitle}.
+${data.dateText}, ${data.time}
+${data.location}
+
+Paga ${data.amount} en efectivo en la entrada y muestra tu código QR. Tu pedido es ${data.shortCode}.
+
+${ticketsText}
+
+Tu pre-registro:
+${data.orderUrl}`,
   };
 }
 
