@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils";
 
 const TABS = [
   { segment: "details", label: "Detalles" },
+  { segment: "stats", label: "Estadísticas" },
   { segment: "ticketing", label: "Boletos y pagos" },
   { segment: "attendees", label: "Asistentes" },
   { segment: "form", label: "Formulario" },
