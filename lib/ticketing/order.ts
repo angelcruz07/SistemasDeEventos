@@ -67,17 +67,22 @@ export function parsePaymentChoice(input: unknown): PublicPaymentChoice | null {
 }
 
 /**
- * A door walk-in is refused when the email already owns an open or PAID order for the event.
- * The DB no longer enforces this (the (eventId, email) unique is gone), so the walk-in checks it.
+ * One email, one registration per event: any order that is not CANCELLED (open or PAID) blocks
+ * a new one for the same (event, email). A cancelled or deleted order frees the email again.
+ * The DB does not enforce it (no (eventId, email) unique), so registration and walk-in check it.
  */
-export function blocksWalkIn(status: OrderStatus): boolean {
+export function blocksRegistration(status: OrderStatus): boolean {
   return isOpenOrder(status) || status === "PAID";
 }
 
-export type OrderRefusal = "closed" | "full" | "quantity" | "method";
+/** A door walk-in follows the same one-email-per-event rule as the public form. */
+export function blocksWalkIn(status: OrderStatus): boolean {
+  return blocksRegistration(status);
+}
+
+export type OrderRefusal = "closed" | "full" | "quantity" | "method" | "email";
 
 export type OrderDecision =
-  | { kind: "duplicate"; orderId: string }
   | { kind: "refused"; reason: OrderRefusal }
   | { kind: "create"; status: OrderStatus; method: PaymentMethod; amountCents: number; issueNow: number };
 
@@ -94,10 +99,10 @@ export function decideOrder(input: {
   method?: PublicPaymentChoice | null;
 }): OrderDecision {
   const { event, held, quantity, existing } = input;
-  // A cancelled event accepts nothing, not even link recovery.
+  // A cancelled event accepts nothing.
   if (event.isCancelled) return { kind: "refused", reason: "closed" };
-  // An open order always wins so buyers can recover their link after close/sold out.
-  if (existing && isOpenOrder(existing.status)) return { kind: "duplicate", orderId: existing.id };
+  // The email is already registered: say so before closed/full, it is the actionable answer.
+  if (existing && blocksRegistration(existing.status)) return { kind: "refused", reason: "email" };
 
   const availability = registrationAvailability(event, held);
   if (!availability.open) return { kind: "refused", reason: availability.reason };

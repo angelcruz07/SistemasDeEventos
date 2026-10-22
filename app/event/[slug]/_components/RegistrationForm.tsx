@@ -187,7 +187,18 @@ export function RegistrationForm({
           type="email"
           autoComplete="email"
           value={email}
-          onChange={(e) => setEmail(e.target.value)}
+          aria-invalid={fieldErrors.email ? true : undefined}
+          onChange={(e) => {
+            setEmail(e.target.value);
+            // A new email clears the "already registered" warning.
+            if (fieldErrors.email) {
+              setFieldErrors((prev) => {
+                const next = { ...prev };
+                delete next.email;
+                return next;
+              });
+            }
+          }}
         />
         <FieldError message={fieldErrors.email} />
       </div>
@@ -277,8 +288,8 @@ export function RegistrationForm({
       ))}
 
       {error && (
-        <p role="alert" className="flex items-center gap-2 text-sm text-destructive">
-          <AlertCircle className="size-4 shrink-0" />
+        <p role="alert" className="flex items-start gap-2 rounded-md bg-destructive/10 p-3 text-sm text-destructive">
+          <AlertCircle className="mt-0.5 size-4 shrink-0" />
           {error}
         </p>
       )}

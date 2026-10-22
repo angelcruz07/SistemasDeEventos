@@ -12,7 +12,7 @@ import { countHeld } from "@/lib/server/held";
 import { lockEvent } from "@/lib/server/orders";
 import { sendCashPreregistrationEmail, sendOrderEmail, sendTicketEmails } from "@/lib/server/ticket-email";
 import { parseFormSchema, validateAnswers } from "@/lib/ticketing/form-schema";
-import { ORDER_STATUSES, decideOrder, isOpenOrder, parsePaymentChoice, parseQuantity } from "@/lib/ticketing/order";
+import { ORDER_STATUSES, blocksRegistration, decideOrder, parsePaymentChoice, parseQuantity } from "@/lib/ticketing/order";
 import { isUniqueViolation } from "@/lib/ticketing/registration";
 import { createWithUniqueCode, generateDistinctCodes } from "@/lib/ticketing/short-code";
 
@@ -40,13 +40,15 @@ const RATE_LIMITED: RegisterResult = {
   success: false,
   error: "Demasiados intentos. Espera unos minutos e inténtalo de nuevo.",
 };
-const OPEN_STATUSES = ORDER_STATUSES.filter(isOpenOrder);
+const BLOCKING_STATUSES = ORDER_STATUSES.filter(blocksRegistration);
 const REFUSALS = {
   closed: "Las inscripciones para este evento están cerradas.",
   full: "Este evento ya no tiene lugares disponibles.",
   // Never reveals how many spots remain.
   quantity: "No hay lugares suficientes para esa cantidad.",
   method: "Ese método de pago no está disponible para este evento.",
+  email:
+    "Este correo ya está registrado en este evento. Usa otro correo para registrarte; si ya te habías registrado, revisa tu bandeja de entrada (y spam).",
 } as const;
 
 function isInput(value: unknown): value is RegistrationInput {
@@ -62,16 +64,13 @@ function isInput(value: unknown): value is RegistrationInput {
 }
 
 /**
- * Public registration: creates ONE Order for N tickets. At most one OPEN order
- * per (event, email): a repeated email re-sends that order's link and the response is
- * the same as for a new registration, so the form cannot be used to probe emails.
- * A buyer whose earlier order is PAID/CANCELLED simply creates a new order (no email unique).
+ * Public registration: creates ONE Order for N tickets. One email registers once per event:
+ * an email with any order that is not CANCELLED is refused with a clear message (checked
+ * inside the event lock, so two simultaneous submissions cannot both pass).
  * A quantity-1 order is mirrored by one ticket with the SAME id and code (the shape the
  * migration backfill produces), so emailed links and the organizer list keep working.
  * A quantity > 1 order has no tickets until approval (design D3); a free one issues all N
  * tickets at once and sends their emails in one batch.
- * (When the event is closed or full a NEW email is refused while a known one
- * still succeeds; that small signal is accepted for the sake of link recovery.)
  */
 export async function registerForEvent(slug: string, input: unknown): Promise<RegisterResult> {
   try {
@@ -111,8 +110,8 @@ export async function registerForEvent(slug: string, input: unknown): Promise<Re
           // Serialize registrations (and receipt uploads) per event so capacity cannot be oversold.
           await lockEvent(tx, event.id);
           const current = await tx.event.findUniqueOrThrow({ where: { id: event.id } });
-          const openOrder = await tx.order.findFirst({
-            where: { eventId: event.id, email, status: { in: OPEN_STATUSES } },
+          const existing = await tx.order.findFirst({
+            where: { eventId: event.id, email, status: { in: BLOCKING_STATUSES } },
             orderBy: { createdAt: "desc" },
             select: { id: true, status: true },
           });
@@ -120,14 +119,10 @@ export async function registerForEvent(slug: string, input: unknown): Promise<Re
             event: current,
             held: await countHeld(tx, event.id),
             quantity,
-            existing: openOrder,
+            existing,
             method: paymentChoice,
           });
           if (decision.kind === "refused") return decision;
-          if (decision.kind === "duplicate") {
-            const order = await tx.order.findUniqueOrThrow({ where: { id: decision.orderId } });
-            return { kind: "duplicate" as const, order, event: current };
-          }
 
           const id = randomUUID();
           const answersJson = answers as unknown as Prisma.InputJsonValue;
@@ -185,16 +180,19 @@ export async function registerForEvent(slug: string, input: unknown): Promise<Re
       isUniqueViolation,
     );
 
-    if (outcome.kind === "refused") return { success: false, error: REFUSALS[outcome.reason] };
+    if (outcome.kind === "refused") {
+      const error = REFUSALS[outcome.reason];
+      return outcome.reason === "email"
+        ? { success: false, error, fieldErrors: { email: "Este correo ya fue registrado. Usa otro." } }
+        : { success: false, error };
+    }
 
     // Best effort, after commit and after the response: a provider outage must not undo the
-    // registration, and awaiting the send would make a duplicate (re-send) slower than a new
-    // registration, revealing which emails are registered. the senders never throw.
-    const { order, event: emailEvent } = outcome;
-    const issued = outcome.kind === "created" ? outcome.issued : [];
+    // registration. The senders never throw.
+    const { order, event: emailEvent, issued } = outcome;
     const target = { id: order.id, name: order.name, email, code: order.code, amountCents: order.amountCents };
     if (order.status === "PENDING_CASH") {
-      // New or repeated cash pre-registration: the email carries the QR codes and the amount due at the door.
+      // Cash pre-registration: the email carries the QR codes and the amount due at the door.
       after(() => sendCashPreregistrationEmail(target, emailEvent));
     } else if (issued.length > 0) {
       after(() => sendTicketEmails(issued, emailEvent));

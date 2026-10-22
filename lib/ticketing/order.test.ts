@@ -8,6 +8,7 @@ import {
   canTransitionOrder,
   decideOrder,
   isOpenOrder,
+  blocksRegistration,
   blocksWalkIn,
   maxQuantity,
   orderAmount,
@@ -109,20 +110,20 @@ describe("decideOrder", () => {
       issueNow: 3,
     });
   });
-  it("returns the open order instead of creating another", () => {
-    expect(decide({ existing: { id: "o1", status: "PENDING_VALIDATION" } })).toEqual({ kind: "duplicate", orderId: "o1" });
-    expect(decide({ existing: { id: "o2", status: "REJECTED" } })).toEqual({ kind: "duplicate", orderId: "o2" });
+  it("refuses an email that already has an open or paid order in the event", () => {
+    for (const status of ["PENDING_RECEIPT", "PENDING_VALIDATION", "REJECTED", "PENDING_CASH", "PAID"] as const) {
+      expect(decide({ existing: { id: "o1", status } })).toEqual({ kind: "refused", reason: "email" });
+    }
   });
-  it("lets a buyer with only a PAID or CANCELLED order buy again", () => {
-    expect(decide({ existing: { id: "o3", status: "PAID" } }).kind).toBe("create");
+  it("lets the email register again once its order was cancelled", () => {
     expect(decide({ existing: { id: "o4", status: "CANCELLED" } }).kind).toBe("create");
   });
-  it("lets an open order win even when full or closed", () => {
-    const existing = { id: "o1", status: "PENDING_RECEIPT" as OrderStatus };
-    expect(decide({ existing, held: 100 }).kind).toBe("duplicate");
-    expect(decide({ existing }, { registrationOpen: false }).kind).toBe("duplicate");
+  it("reports the taken email even when the event is full or closed", () => {
+    const existing = { id: "o1", status: "PAID" as OrderStatus };
+    expect(decide({ existing, held: 100 })).toEqual({ kind: "refused", reason: "email" });
+    expect(decide({ existing }, { registrationOpen: false })).toEqual({ kind: "refused", reason: "email" });
   });
-  it("refuses everything on a cancelled event, even link recovery", () => {
+  it("refuses everything on a cancelled event", () => {
     expect(decide({ existing: { id: "o1", status: "PENDING_RECEIPT" } }, { isCancelled: true })).toEqual({
       kind: "refused",
       reason: "closed",
@@ -159,10 +160,10 @@ describe("decideOrder", () => {
   it("ignores the method on a free event", () => {
     expect(decide({ method: "CASH" }, { priceCents: 0 })).toMatchObject({ kind: "create", method: "FREE", status: "PAID" });
   });
-  it("returns an open cash pre-registration instead of creating another", () => {
+  it("refuses a second cash pre-registration with the same email", () => {
     expect(decide({ existing: { id: "c1", status: "PENDING_CASH" }, method: "CASH" }, { allowCashPrereg: true })).toEqual({
-      kind: "duplicate",
-      orderId: "c1",
+      kind: "refused",
+      reason: "email",
     });
   });
   it("accepts exactly the remaining room", () => {
@@ -231,6 +232,12 @@ describe("canTransitionOrder", () => {
 describe("PRE_ISSUE_STATUSES", () => {
   it("is the ticket statuses that mirror an unpaid order", () => {
     expect([...PRE_ISSUE_STATUSES].sort()).toEqual(["PENDING_RECEIPT", "PENDING_VALIDATION", "REJECTED"]);
+  });
+});
+
+describe("blocksRegistration", () => {
+  it("blocks every status except CANCELLED", () => {
+    expect(ORDER_STATUSES.filter((st) => !blocksRegistration(st))).toEqual(["CANCELLED"]);
   });
 });
 
