@@ -8,6 +8,7 @@ function input(overrides: Partial<TicketingConfigInput> = {}): TicketingConfigIn
     price: "350.50",
     allowSpei: true,
     allowCash: false,
+    allowCashPrereg: false,
     speiClabe: VALID_CLABE,
     speiBank: "Banamex",
     speiBeneficiary: "Juan Perez",
@@ -24,6 +25,16 @@ function errorsOf(i: TicketingConfigInput) {
   return r.errors;
 }
 
+describe("parseTicketingConfig cash pre-registration", () => {
+  it("accepts cash pre-registration as the only method of a paid event", () => {
+    const r = parseTicketingConfig(input({ allowSpei: false, allowCashPrereg: true, speiClabe: "" }));
+    expect("data" in r && r.data.allowCashPrereg).toBe(true);
+  });
+  it("still requires at least one method for a paid event", () => {
+    expect(errorsOf(input({ allowSpei: false, allowCash: false, allowCashPrereg: false })).methods).toBeDefined();
+  });
+});
+
 describe("parseTicketingConfig", () => {
   it("converts pesos to cents and normalises optional numbers", () => {
     const r = parseTicketingConfig(input());
@@ -32,6 +43,7 @@ describe("parseTicketingConfig", () => {
         priceCents: 35050,
         allowSpei: true,
         allowCash: false,
+        allowCashPrereg: false,
         speiClabe: VALID_CLABE,
         speiBank: "Banamex",
         speiBeneficiary: "Juan Perez",

@@ -12,6 +12,9 @@ const ALLOWED: Array<[string, string]> = [
   ["PENDING_VALIDATION", "CANCELLED"],
   ["PAID", "CANCELLED"],
   ["REJECTED", "CANCELLED"],
+  ["PENDING_CASH", "PAID"],
+  ["PENDING_CASH", "CHECKED_IN"],
+  ["PENDING_CASH", "CANCELLED"],
 ];
 
 describe("canTransition", () => {
@@ -48,8 +51,12 @@ describe("initialStatus", () => {
     );
   });
 
+  it("public cash is a pre-registration: the QR exists, the money is collected at the door", () => {
+    expect(initialStatus({ method: "CASH", priceCents: 10000, channel: "public" })).toBe("PENDING_CASH");
+  });
+
   it("refuses combinations the system never creates", () => {
-    expect(() => initialStatus({ method: "CASH", priceCents: 10000, channel: "public" })).toThrow();
+    expect(() => initialStatus({ method: "CASH", priceCents: 0, channel: "public" })).toThrow();
     expect(() => initialStatus({ method: "SPEI", priceCents: 100, channel: "door" })).toThrow();
   });
 });

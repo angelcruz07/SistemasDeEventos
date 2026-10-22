@@ -6,7 +6,7 @@ import { serverErrorToSpanish } from "@/lib/error-messages";
 import { revalidatePath } from "next/cache";
 import { countHeld } from "@/lib/server/held";
 import { parseFormSchema } from "@/lib/ticketing/form-schema";
-import { registrationAvailability } from "@/lib/ticketing/registration";
+import { publicPaymentMethods, registrationAvailability } from "@/lib/ticketing/registration";
 import { parseTicketDesign } from "@/lib/ticketing/ticket-design";
 import { normalizeEventImages } from "@/lib/ticketing/event-images";
 import { IMAGES_INCLUDE } from "../interfaces/event.interface";
@@ -252,6 +252,7 @@ export async function getEventBySlug(slug: string) {
         formSchema: true,
         registrationOpen: true,
         allowSpei: true,
+        allowCashPrereg: true,
         ticketDesign: true,
         // Used only to derive `availability`; never returned.
         capacity: true,
@@ -278,6 +279,8 @@ export async function getEventBySlug(slug: string) {
         // Only the parsed, sanitized design leaves the server; the raw JSON never does.
         design: parseTicketDesign(event.ticketDesign, process.env.CLOUDINARY_CLOUD_NAME),
         availability: availability.open ? ("open" as const) : availability.reason,
+        // Methods only: never the SPEI bank details (those go by email and on the order page).
+        paymentMethods: publicPaymentMethods(event),
       },
     };
   } catch (error) {

@@ -6,6 +6,8 @@ export interface TicketingConfigInput {
   price: string;
   allowSpei: boolean;
   allowCash: boolean;
+  /** Online pre-registration paid in cash at the door. */
+  allowCashPrereg: boolean;
   speiClabe: string;
   speiBank: string;
   speiBeneficiary: string;
@@ -18,6 +20,7 @@ export interface TicketingConfig {
   priceCents: number;
   allowSpei: boolean;
   allowCash: boolean;
+  allowCashPrereg: boolean;
   speiClabe: string | null;
   speiBank: string | null;
   speiBeneficiary: string | null;
@@ -53,7 +56,7 @@ export function parseTicketingConfig(input: TicketingConfigInput): ParsedTicketi
   if (priceCents === null) errors.price = "Ingresa un precio válido (por ejemplo 350 o 350.50)";
   else if (priceCents > MAX_PRICE_CENTS) errors.price = "El precio máximo es $100,000.00";
 
-  if (priceCents !== null && priceCents > 0 && !input.allowSpei && !input.allowCash) {
+  if (priceCents !== null && priceCents > 0 && !input.allowSpei && !input.allowCash && !input.allowCashPrereg) {
     errors.methods = "Activa al menos un método de pago para un evento con precio";
   }
 
@@ -85,6 +88,7 @@ export function parseTicketingConfig(input: TicketingConfigInput): ParsedTicketi
       priceCents,
       allowSpei: input.allowSpei,
       allowCash: input.allowCash,
+      allowCashPrereg: input.allowCashPrereg,
       speiClabe: clabe || null,
       speiBank: bank || null,
       speiBeneficiary: beneficiary || null,

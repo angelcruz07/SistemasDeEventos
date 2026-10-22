@@ -1,6 +1,7 @@
 import type { TicketStatus } from "@/app/generated/prisma/enums";
 import { formatMx } from "@/lib/datetime";
 import { STATUS_LABELS } from "./attendees";
+import { formatMxn } from "./money";
 import { CODE_ALPHABET, CODE_LENGTH, normalizeShortCode } from "./short-code";
 import { verifyTicketToken } from "./token";
 
@@ -41,6 +42,8 @@ export function parseSearchQuery(raw: string): { text: string; code: string | nu
 
 export type CheckInDecision =
   | { kind: "allow" }
+  /** Cash pre-registration: staff collect `amount` (the whole order) and then let the attendee in. */
+  | { kind: "collect"; amount: string; quantity: number; message: string }
   | { kind: "already"; message: string }
   | { kind: "denied"; message: string };
 
@@ -52,7 +55,14 @@ export function escapeLike(text: string): string {
 export type DoorErrorCode = "SESSION_EXPIRED" | "EVENT_CANCELLED";
 
 export function checkInDecision(
-  ticket: { eventId: string; status: string; checkedInAt: Date | null; checkedInBy: string | null },
+  ticket: {
+    eventId: string;
+    status: string;
+    checkedInAt: Date | null;
+    checkedInBy: string | null;
+    /** The ticket's order; only read for a cash pre-registration (amount due at the door). */
+    order?: { amountCents: number; quantity: number } | null;
+  },
   sessionEventId: string,
   options: { eventCancelled?: boolean } = {},
 ): CheckInDecision {
@@ -69,6 +79,14 @@ export function checkInDecision(
     }
     case "CANCELLED":
       return { kind: "denied", message: "Cancelado" };
+    case "PENDING_CASH": {
+      // Without its order the amount is unknown: never let staff guess what to charge.
+      if (!ticket.order) return { kind: "denied", message: "Pago no confirmado: falta el pedido" };
+      const amount = formatMxn(ticket.order.amountCents);
+      const { quantity } = ticket.order;
+      const tickets = quantity === 1 ? "1 boleto" : `${quantity} boletos`;
+      return { kind: "collect", amount, quantity, message: `Cobrar ${amount} en efectivo (${tickets})` };
+    }
     default: {
       const label = STATUS_LABELS[ticket.status as TicketStatus] ?? ticket.status;
       return { kind: "denied", message: `Pago no confirmado: ${label}` };

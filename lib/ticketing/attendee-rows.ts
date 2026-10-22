@@ -99,7 +99,8 @@ export function toOrderRow(order: OrderRowInput): OrderRow {
       status: t.status,
       checkedInAt: t.checkedInAt ? formatMx(t.checkedInAt) : null,
       checkedInBy: t.checkedInBy,
-      canCancel: canCancel(t.status),
+      // An unpaid cash ticket is cancelled through its order (the amount due belongs to the whole order).
+      canCancel: canCancel(t.status) && t.status !== "PENDING_CASH",
     }));
   return {
     id: order.id,

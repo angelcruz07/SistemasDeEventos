@@ -23,8 +23,9 @@ export function validateRejectReason(input: string): ReasonValidation {
 }
 
 /** Which email to re-send for a status; null when nothing sensible can be sent. */
-export function resendKindFor(status: TicketStatus): "received" | "ticket" | null {
+export function resendKindFor(status: TicketStatus): "received" | "ticket" | "cash" | null {
   if (status === "PENDING_RECEIPT" || status === "REJECTED") return "received";
+  if (status === "PENDING_CASH") return "cash";
   if (status === "PAID") return "ticket";
   return null;
 }

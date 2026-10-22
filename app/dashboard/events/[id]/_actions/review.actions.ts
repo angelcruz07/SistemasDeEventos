@@ -7,7 +7,12 @@ import type { Prisma } from "@/app/generated/prisma/client";
 import prisma from "@/app/lib/prisma";
 import { getOwnedEvent } from "@/lib/server/guards";
 import { lockEvent } from "@/lib/server/orders";
-import { sendOrderEmail, sendTicketEmail, sendTicketEmails } from "@/lib/server/ticket-email";
+import {
+  sendCashPreregistrationEmail,
+  sendOrderEmail,
+  sendTicketEmail,
+  sendTicketEmails,
+} from "@/lib/server/ticket-email";
 import { PRE_ISSUE_STATUSES, canTransitionOrder, planIssuance } from "@/lib/ticketing/order";
 import { isCodeCollision } from "@/lib/ticketing/registration";
 import { canCancel, resendKindFor, validateRejectReason } from "@/lib/ticketing/review";
@@ -186,9 +191,10 @@ export async function cancelOrder(eventId: string, orderId: string): Promise<Rev
         data: { status: "CANCELLED", reviewedAt: now },
       });
       if (count !== 1) return false;
-      // Unpaid mirrors and issued tickets are cancelled; a ticket already used at the door stays CHECKED_IN.
+      // Unpaid mirrors, unpaid cash pre-registrations and issued tickets are cancelled (their QR stops
+      // working at the door); a ticket already used at the door stays CHECKED_IN.
       await tx.ticket.updateMany({
-        where: { orderId: order.id, status: { in: [...PRE_ISSUE_STATUSES, "PAID"] } },
+        where: { orderId: order.id, status: { in: [...PRE_ISSUE_STATUSES, "PENDING_CASH", "PAID"] } },
         data: { status: "CANCELLED", reviewedAt: now },
       });
       return true;
@@ -210,9 +216,11 @@ export async function resendOrder(eventId: string, orderId: string): Promise<Rev
     if (!kind) return { success: false, error: "No hay un correo que reenviar para este estado." };
     if (!order.email) return { success: false, error: "Esta compra no tiene correo." };
 
+    const target = { id: order.id, name: order.name, email: order.email, code: order.code, amountCents: order.amountCents };
     if (kind === "received") {
-      const target = { id: order.id, name: order.name, email: order.email, code: order.code, amountCents: order.amountCents };
       after(() => sendOrderEmail("received", target, event));
+    } else if (kind === "cash") {
+      after(() => sendCashPreregistrationEmail(target, event));
     } else {
       const email = order.email;
       const tickets = await prisma.ticket.findMany({
@@ -286,7 +294,8 @@ export async function cancelTicket(eventId: string, ticketId: string): Promise<R
     if (!canCancel(ticket.status)) {
       return { success: false, error: "Este boleto ya no se puede cancelar." };
     }
-    if (PRE_ISSUE_STATUSES.includes(ticket.status)) {
+    // An unpaid cash ticket is cancelled with its whole order: the amount due at the door is per order.
+    if (PRE_ISSUE_STATUSES.includes(ticket.status) || ticket.status === "PENDING_CASH") {
       const orderId = await orderIdFor(eventId, ticketId);
       return orderId ? cancelOrder(eventId, orderId) : NOT_FOUND;
     }

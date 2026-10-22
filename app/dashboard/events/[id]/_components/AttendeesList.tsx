@@ -18,6 +18,7 @@ const BADGE: Record<TicketStatus, string> = {
   CHECKED_IN: "bg-blue-100 text-blue-900",
   REJECTED: "bg-red-100 text-red-900",
   CANCELLED: "bg-muted text-muted-foreground line-through",
+  PENDING_CASH: "bg-orange-100 text-orange-900",
 };
 
 const ticketsLabel = (n: number) => `${n} ${n === 1 ? "boleto" : "boletos"}`;

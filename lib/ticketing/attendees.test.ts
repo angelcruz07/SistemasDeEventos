@@ -71,7 +71,8 @@ describe("countByStatus", () => {
     const counts = countByStatus([{ status: "PAID", _count: { _all: 3 } }]);
     expect(counts.PAID).toBe(3);
     expect(counts.REJECTED).toBe(0);
-    expect(Object.keys(counts)).toHaveLength(5);
+    expect(counts.PENDING_CASH).toBe(0);
+    expect(Object.keys(counts)).toHaveLength(6);
   });
 });
 

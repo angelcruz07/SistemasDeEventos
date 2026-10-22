@@ -69,6 +69,7 @@ enum TicketStatus {
   CHECKED_IN
   REJECTED
   CANCELLED
+  PENDING_CASH // pre-registered online, pays cash at the door; already has its QR
 }
 
 enum OrderStatus {
@@ -77,6 +78,7 @@ enum OrderStatus {
   PAID
   REJECTED
   CANCELLED
+  PENDING_CASH // pre-registered online, pays cash at the door
 }
 
 enum PaymentMethod {
@@ -103,6 +105,7 @@ model Event {
   currency         String  @default("MXN")
   allowSpei        Boolean @default(true)
   allowCash        Boolean @default(false)
+  allowCashPrereg  Boolean @default(false) // public pre-registration paid in cash at the door
   speiClabe        String?
   speiBank         String?
   speiBeneficiary  String?

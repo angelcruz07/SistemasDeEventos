@@ -16,6 +16,7 @@ export default async function TicketingPage({
         price: event.priceCents === 0 ? "0" : (event.priceCents / 100).toFixed(2),
         allowSpei: event.allowSpei,
         allowCash: event.allowCash,
+        allowCashPrereg: event.allowCashPrereg,
         speiClabe: event.speiClabe ?? "",
         speiBank: event.speiBank ?? "",
         speiBeneficiary: event.speiBeneficiary ?? "",

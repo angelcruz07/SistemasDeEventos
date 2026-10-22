@@ -3,8 +3,10 @@ import { formatEventDate } from "@/lib/datetime";
 import { sendEmail, sendEmails } from "@/lib/email/email-sender";
 import { buildOrderEmail } from "@/lib/email/order-email";
 import { redactEmails } from "@/lib/email/redact";
-import { renderTicketIssued } from "@/lib/email/templates";
+import { renderCashPreregistration, renderTicketIssued } from "@/lib/email/templates";
 import { getTicketingEnv } from "@/lib/env";
+import { formatMxn } from "@/lib/ticketing/money";
+import { ticketLabel } from "@/lib/ticketing/order-view";
 import { formatShortCode } from "@/lib/ticketing/short-code";
 import { signOrderToken, signTicketToken } from "@/lib/ticketing/token";
 
@@ -140,6 +142,57 @@ export async function sendOrderEmail(
   } catch (error) {
     const message = error instanceof Error ? redactEmails(error.message) : "unknown error";
     console.error(`Order email crashed (kind=${kind}, order=${order.id}): ${message}`);
+    return false;
+  }
+}
+
+/**
+ * Pre-registration email of a cash order (PENDING_CASH): the amount to pay at the door and one
+ * QR per ticket. Tickets are read here so a re-send always matches what the door will scan.
+ * Records registrationEmailSentAt on success. Never throws.
+ */
+export async function sendCashPreregistrationEmail(order: OrderEmailTarget, event: TicketEmailEvent): Promise<boolean> {
+  try {
+    const { signingSecret, appUrl } = getTicketingEnv();
+    const tickets = await prisma.ticket.findMany({
+      where: { orderId: order.id, status: "PENDING_CASH" },
+      orderBy: { seq: "asc" },
+      select: { id: true, code: true, seq: true },
+    });
+    if (tickets.length === 0) return false;
+
+    const rendered = renderCashPreregistration({
+      name: order.name,
+      eventTitle: event.title,
+      shortCode: formatShortCode(order.code),
+      amount: formatMxn(order.amountCents),
+      orderUrl: `${appUrl}/order/${signOrderToken(order.id, signingSecret)}`,
+      dateText: formatEventDate(event.date),
+      time: event.time,
+      location: event.location,
+      tickets: tickets.map((t) => {
+        const token = signTicketToken(t.id, signingSecret);
+        return {
+          label: tickets.length > 1 ? ticketLabel(t.seq, tickets.length) : "",
+          shortCode: formatShortCode(t.code),
+          qrUrl: `${appUrl}/api/tickets/${token}/qr.png`,
+          ticketUrl: `${appUrl}/ticket/${token}`,
+        };
+      }),
+    });
+
+    const result = await sendEmail({ ...rendered, to: order.email });
+    if (!result.ok) {
+      console.error(`Cash pre-registration email failed (order=${order.id}): ${redactEmails(result.error)}`);
+      return false;
+    }
+    const sentAt = new Date();
+    await prisma.order.updateMany({ where: { id: order.id }, data: { registrationEmailSentAt: sentAt } });
+    await prisma.ticket.updateMany({ where: { orderId: order.id }, data: { registrationEmailSentAt: sentAt } });
+    return true;
+  } catch (error) {
+    const message = error instanceof Error ? redactEmails(error.message) : "unknown error";
+    console.error(`Cash pre-registration email crashed (order=${order.id}): ${message}`);
     return false;
   }
 }

@@ -15,6 +15,7 @@ export const STATUS_LABELS: Record<TicketStatus, string> = {
   CHECKED_IN: "Ingresó",
   REJECTED: "Rechazado",
   CANCELLED: "Cancelado",
+  PENDING_CASH: "Pendiente de pago en efectivo",
 };
 
 /** Order-level labels: the attendees list and the CSV are order-centric. */
@@ -24,6 +25,7 @@ export const ORDER_STATUS_LABELS: Record<OrderStatus, string> = {
   PAID: STATUS_LABELS.PAID,
   REJECTED: STATUS_LABELS.REJECTED,
   CANCELLED: STATUS_LABELS.CANCELLED,
+  PENDING_CASH: STATUS_LABELS.PENDING_CASH,
 };
 
 export const PAYMENT_METHOD_LABELS: Record<PaymentMethod, string> = { SPEI: "SPEI", CASH: "Efectivo", FREE: "Gratis" };

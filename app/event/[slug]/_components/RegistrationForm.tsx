@@ -11,6 +11,12 @@ import { clampQuantity, orderTotalLabel, sanitizeQuantityText } from "@/lib/tick
 import { registerForEvent } from "../_actions/registration.actions";
 
 type Values = Record<string, string | boolean>;
+type PaymentChoice = "SPEI" | "CASH";
+
+const METHOD_COPY: Record<PaymentChoice, { label: string; hint: string }> = {
+  SPEI: { label: "Transferencia SPEI", hint: "Te enviamos los datos por correo y subes tu comprobante." },
+  CASH: { label: "Efectivo en la entrada", hint: "Recibes tu QR por correo y pagas al llegar." },
+};
 
 function FieldError({ message }: { message?: string }) {
   return message ? <p className="text-sm text-destructive">{message}</p> : null;
@@ -92,12 +98,15 @@ export function RegistrationForm({
   schema,
   priceLabel,
   priceCents,
+  paymentMethods = [],
   accent,
 }: {
   slug: string;
   schema: FormSchema;
   priceLabel: string;
   priceCents: number;
+  /** Public methods of a paid event (empty when free). The server re-checks the choice. */
+  paymentMethods?: PaymentChoice[];
   /** The stepper never depends on capacity; the server enforces the real limit and answers generically. */
   /** Organizer accent for the submit button (already contrast-checked). */
   accent?: { background: string; color: string };
@@ -107,6 +116,8 @@ export function RegistrationForm({
   const [fields, setFields] = useState<Values>({});
   // Raw text so the buyer can clear the field while typing; clamped on blur and on submit.
   const [quantityText, setQuantityText] = useState("1");
+  const [paymentMethod, setPaymentMethod] = useState<PaymentChoice | null>(paymentMethods[0] ?? null);
+  const [doneMethod, setDoneMethod] = useState<PaymentChoice | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [done, setDone] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -119,8 +130,9 @@ export function RegistrationForm({
     setFieldErrors({});
     const quantity = clampQuantity(quantityText, MAX_QUANTITY_UNCAPPED);
     setQuantityText(String(quantity));
-    const result = await registerForEvent(slug, { name, email, fields, quantity });
+    const result = await registerForEvent(slug, { name, email, fields, quantity, paymentMethod: paymentMethod ?? undefined });
     if (result.success) {
+      setDoneMethod(paymentMethod);
       setDone(true);
     } else {
       setError(result.error);
@@ -128,6 +140,19 @@ export function RegistrationForm({
     }
     setSubmitting(false);
   };
+
+  if (done && doneMethod === "CASH") {
+    return (
+      <div role="status" className="space-y-2 text-center py-4">
+        <CheckCircle2 className="size-10 text-green-600 mx-auto" />
+        <h2 className="font-semibold">¡Pre-registro listo!</h2>
+        <p className="text-sm text-muted-foreground">
+          Te enviamos tu código QR por correo. Paga en efectivo en la entrada y muéstralo al llegar. Si no lo ves, revisa
+          tu carpeta de spam.
+        </p>
+      </div>
+    );
+  }
 
   if (done) {
     return (
@@ -210,6 +235,37 @@ export function RegistrationForm({
         )}
       </div>
 
+      {paymentMethods.length > 1 && (
+        <fieldset className="space-y-2">
+          <legend className="text-sm font-medium">Forma de pago</legend>
+          {paymentMethods.map((method) => (
+            <label
+              key={method}
+              htmlFor={`pay-${method}`}
+              className="flex cursor-pointer items-start gap-3 rounded-md border p-3 text-sm has-[:checked]:border-foreground"
+            >
+              <input
+                id={`pay-${method}`}
+                type="radio"
+                name="paymentMethod"
+                className="mt-1 size-4"
+                checked={paymentMethod === method}
+                onChange={() => setPaymentMethod(method)}
+              />
+              <span>
+                <span className="font-medium">{METHOD_COPY[method].label}</span>
+                <span className="block text-muted-foreground">{METHOD_COPY[method].hint}</span>
+              </span>
+            </label>
+          ))}
+        </fieldset>
+      )}
+      {paymentMethods.length === 1 && paymentMethods[0] === "CASH" && (
+        <p className="rounded-md border p-3 text-sm text-muted-foreground">
+          <span className="font-medium text-foreground">Pago en efectivo en la entrada.</span> {METHOD_COPY.CASH.hint}
+        </p>
+      )}
+
       {schema.fields.map((field) => (
         <DynamicField
           key={field.id}
@@ -234,7 +290,7 @@ export function RegistrationForm({
         style={accent ? { backgroundColor: accent.background, color: accent.color } : undefined}
       >
         {submitting && <Loader2 className="size-4 animate-spin" />}
-        Registrarme
+        {paymentMethod === "CASH" ? "Pre-registrarme" : "Registrarme"}
       </Button>
     </form>
   );

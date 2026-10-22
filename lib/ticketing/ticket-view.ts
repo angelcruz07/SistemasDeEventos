@@ -3,7 +3,8 @@ import type { TicketStatus } from "@/app/generated/prisma/enums";
 export type TicketView =
   | { kind: "upload"; rejectionReason: string | null }
   | { kind: "review" }
-  | { kind: "ticket"; checkedIn: boolean }
+  /** `cashPending`: a cash pre-registration whose QR works but whose amount is collected at the door. */
+  | { kind: "ticket"; checkedIn: boolean; cashPending?: boolean }
   | { kind: "cancelled" };
 
 /** What the attendee-facing ticket page shows for each status. */
@@ -22,6 +23,8 @@ export function ticketViewFor(ticket: {
       return { kind: "review" };
     case "PAID":
       return { kind: "ticket", checkedIn: false };
+    case "PENDING_CASH":
+      return { kind: "ticket", checkedIn: false, cashPending: true };
     case "CHECKED_IN":
       return { kind: "ticket", checkedIn: true };
     case "CANCELLED":

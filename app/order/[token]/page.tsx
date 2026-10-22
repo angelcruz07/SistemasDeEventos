@@ -58,7 +58,9 @@ export default async function OrderPage({ params }: { params: Promise<{ token: s
   const view = orderViewFor({ ...order, eventCancelled: event.isCancelled });
   const code = formatShortCode(order.code);
   const design = parseTicketDesign(event.ticketDesign, process.env.CLOUDINARY_CLOUD_NAME);
-  const issued = order.tickets.filter((t) => t.status === "PAID" || t.status === "CHECKED_IN" || t.status === "CANCELLED");
+  const issued = order.tickets.filter(
+    (t) => t.status === "PAID" || t.status === "CHECKED_IN" || t.status === "CANCELLED" || t.status === "PENDING_CASH",
+  );
   const total = order.amountCents > 0 ? formatMxn(order.amountCents) : "Gratis";
 
   return (
@@ -117,7 +119,16 @@ export default async function OrderPage({ params }: { params: Promise<{ token: s
             </p>
           </section>
         )}
-        {view.kind === "tickets" && (
+        {view.kind === "cash" && (
+          <section role="status" className="rounded-md border border-orange-300 bg-orange-50 p-4 text-orange-950">
+            <p className="font-semibold">Pre-registro confirmado · pago en efectivo</p>
+            <p className="mt-1 text-sm">
+              Paga {total} en efectivo en la entrada y muestra el código QR de cada boleto. Te los enviamos también por
+              correo.
+            </p>
+          </section>
+        )}
+        {(view.kind === "tickets" || view.kind === "cash") && (
           <section aria-labelledby="tickets-title" className="space-y-3">
             <h2 id="tickets-title" className="text-base font-semibold">
               Tus boletos

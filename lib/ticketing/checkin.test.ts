@@ -70,6 +70,20 @@ describe("checkInDecision", () => {
     expect(checkInDecision({ ...base, status: "PENDING_RECEIPT" }, "e1").kind).toBe("denied");
   });
 
+  it("asks to collect the whole order amount for a cash pre-registration", () => {
+    const d = checkInDecision({ ...base, status: "PENDING_CASH", order: { amountCents: 70_000, quantity: 2 } }, "e1");
+    expect(d).toEqual({ kind: "collect", amount: "$700.00", quantity: 2, message: "Cobrar $700.00 en efectivo (2 boletos)" });
+    const one = checkInDecision({ ...base, status: "PENDING_CASH", order: { amountCents: 35_000, quantity: 1 } }, "e1");
+    expect(one).toMatchObject({ kind: "collect", message: "Cobrar $350.00 en efectivo (1 boleto)" });
+  });
+
+  it("never asks to collect when the amount is unknown or the ticket is from another event", () => {
+    expect(checkInDecision({ ...base, status: "PENDING_CASH" }, "e1").kind).toBe("denied");
+    const other = { ...base, status: "PENDING_CASH", order: { amountCents: 100, quantity: 1 } };
+    expect(checkInDecision(other, "e2")).toEqual({ kind: "denied", message: "Boleto de otro evento" });
+    expect(checkInDecision(other, "e1", { eventCancelled: true })).toEqual({ kind: "denied", message: "Evento cancelado" });
+  });
+
   it("refuses cancelled tickets", () => {
     expect(checkInDecision({ ...base, status: "CANCELLED" }, "e1")).toEqual({ kind: "denied", message: "Cancelado" });
   });

@@ -5,6 +5,7 @@ import prisma from "@/app/lib/prisma";
 import { formatEventDate } from "@/lib/datetime";
 import { getTicketingEnv } from "@/lib/env";
 import { ticketLabel, ticketRedirectsToOrder } from "@/lib/ticketing/order-view";
+import { formatMxn } from "@/lib/ticketing/money";
 import { formatShortCode } from "@/lib/ticketing/short-code";
 import { ticketViewFor } from "@/lib/ticketing/ticket-view";
 import { signOrderToken, verifyTicketToken } from "@/lib/ticketing/token";
@@ -38,7 +39,7 @@ export default async function TicketPage({ params }: { params: Promise<{ token: 
       amountCents: true,
       orderId: true,
       seq: true,
-      order: { select: { quantity: true } },
+      order: { select: { quantity: true, amountCents: true } },
       event: {
         select: {
           title: true,
@@ -121,6 +122,15 @@ export default async function TicketPage({ params }: { params: Promise<{ token: 
           <p className="font-medium">Comprobante recibido, en revisión</p>
           <p className="mt-1 text-sm text-muted-foreground">
             Te enviaremos tu boleto por correo en cuanto validemos tu pago.
+          </p>
+        </section>
+      )}
+      {view.kind === "ticket" && view.cashPending && (
+        <section role="status" className="rounded-md border border-orange-300 bg-orange-50 p-4 text-orange-950">
+          <p className="font-semibold">Pago pendiente en efectivo</p>
+          <p className="mt-1 text-sm">
+            Paga {formatMxn(ticket.order.amountCents)} en efectivo en la entrada
+            {ticket.order.quantity > 1 ? ` (total de tus ${ticket.order.quantity} boletos)` : ""} y muestra este código QR.
           </p>
         </section>
       )}

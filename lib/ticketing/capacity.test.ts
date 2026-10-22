@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { HOLDING_STATUSES, countHeld, hasRoom, hasSpot, heldTotal, isRegistrationOpen } from "./capacity";
+import { HOLDING_STATUSES, SPOT_TICKET_STATUSES, countHeld, hasRoom, hasSpot, heldTotal, isRegistrationOpen } from "./capacity";
 
 describe("heldTotal (D5)", () => {
   it("adds validating order quantities and issued tickets", () => {
@@ -16,8 +16,14 @@ describe("heldTotal (D5)", () => {
 });
 
 describe("HOLDING_STATUSES", () => {
-  it("is PENDING_VALIDATION, PAID and CHECKED_IN only", () => {
-    expect([...HOLDING_STATUSES].sort()).toEqual(["CHECKED_IN", "PAID", "PENDING_VALIDATION"]);
+  it("is PENDING_VALIDATION, PAID, CHECKED_IN and PENDING_CASH only", () => {
+    expect([...HOLDING_STATUSES].sort()).toEqual(["CHECKED_IN", "PAID", "PENDING_CASH", "PENDING_VALIDATION"]);
+  });
+});
+
+describe("SPOT_TICKET_STATUSES", () => {
+  it("counts issued tickets and cash pre-registrations, one spot each", () => {
+    expect([...SPOT_TICKET_STATUSES].sort()).toEqual(["CHECKED_IN", "PAID", "PENDING_CASH"]);
   });
 });
 

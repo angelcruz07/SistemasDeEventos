@@ -69,9 +69,9 @@ describe("orderAmount", () => {
 });
 
 describe("isOpenOrder", () => {
-  it("is PENDING_RECEIPT, PENDING_VALIDATION and REJECTED", () => {
+  it("is PENDING_RECEIPT, PENDING_VALIDATION, REJECTED and PENDING_CASH", () => {
     const open = ORDER_STATUSES.filter(isOpenOrder).sort();
-    expect(open).toEqual(["PENDING_RECEIPT", "PENDING_VALIDATION", "REJECTED"]);
+    expect(open).toEqual(["PENDING_CASH", "PENDING_RECEIPT", "PENDING_VALIDATION", "REJECTED"]);
   });
   it("is not PAID or CANCELLED", () => {
     expect(isOpenOrder("PAID")).toBe(false);
@@ -79,7 +79,14 @@ describe("isOpenOrder", () => {
   });
 });
 
-const baseEvent = { registrationOpen: true, isCancelled: false, capacity: 100 as number | null, priceCents: 25_000, allowSpei: true };
+const baseEvent = {
+  registrationOpen: true,
+  isCancelled: false,
+  capacity: 100 as number | null,
+  priceCents: 25_000,
+  allowSpei: true,
+  allowCashPrereg: false,
+};
 const decide = (over: Partial<Parameters<typeof decideOrder>[0]> = {}, event = {}) =>
   decideOrder({ event: { ...baseEvent, ...event }, held: 0, quantity: 2, existing: null, ...over });
 
@@ -124,6 +131,39 @@ describe("decideOrder", () => {
   it("is closed when registration is off or a paid event has no SPEI", () => {
     expect(decide({}, { registrationOpen: false })).toEqual({ kind: "refused", reason: "closed" });
     expect(decide({}, { allowSpei: false })).toEqual({ kind: "refused", reason: "closed" });
+  });
+  it("creates a cash pre-registration with every ticket issued now (PENDING_CASH)", () => {
+    expect(decide({ method: "CASH", quantity: 3 }, { allowCashPrereg: true })).toEqual({
+      kind: "create",
+      status: "PENDING_CASH",
+      method: "CASH",
+      amountCents: 75_000,
+      issueNow: 3,
+    });
+  });
+  it("defaults to SPEI when both are offered and to cash when it is the only public method", () => {
+    expect(decide({}, { allowCashPrereg: true })).toMatchObject({ kind: "create", method: "SPEI" });
+    expect(decide({}, { allowSpei: false, allowCashPrereg: true })).toMatchObject({
+      kind: "create",
+      method: "CASH",
+      status: "PENDING_CASH",
+    });
+  });
+  it("refuses a method the event does not offer", () => {
+    expect(decide({ method: "CASH" })).toEqual({ kind: "refused", reason: "method" });
+    expect(decide({ method: "SPEI" }, { allowSpei: false, allowCashPrereg: true })).toEqual({
+      kind: "refused",
+      reason: "method",
+    });
+  });
+  it("ignores the method on a free event", () => {
+    expect(decide({ method: "CASH" }, { priceCents: 0 })).toMatchObject({ kind: "create", method: "FREE", status: "PAID" });
+  });
+  it("returns an open cash pre-registration instead of creating another", () => {
+    expect(decide({ existing: { id: "c1", status: "PENDING_CASH" }, method: "CASH" }, { allowCashPrereg: true })).toEqual({
+      kind: "duplicate",
+      orderId: "c1",
+    });
   });
   it("accepts exactly the remaining room", () => {
     expect(decide({ held: 98, quantity: 2 }).kind).toBe("create");
@@ -175,11 +215,16 @@ describe("canTransitionOrder", () => {
     expect(canTransitionOrder("PENDING_VALIDATION", "REJECTED")).toBe(true);
     expect(canTransitionOrder("REJECTED", "PENDING_VALIDATION")).toBe(true);
     expect(canTransitionOrder("PAID", "CANCELLED")).toBe(true);
+    expect(canTransitionOrder("PENDING_CASH", "PAID")).toBe(true);
+    expect(canTransitionOrder("PENDING_CASH", "CANCELLED")).toBe(true);
   });
   it("blocks illegal moves", () => {
     expect(canTransitionOrder("PENDING_RECEIPT", "PAID")).toBe(false);
     expect(canTransitionOrder("PAID", "REJECTED")).toBe(false);
     expect(canTransitionOrder("CANCELLED", "PAID")).toBe(false);
+    // Cash is never reviewed with a receipt: only the door collects it.
+    expect(canTransitionOrder("PENDING_CASH", "PENDING_VALIDATION")).toBe(false);
+    expect(canTransitionOrder("PENDING_CASH", "REJECTED")).toBe(false);
   });
 });
 
@@ -191,7 +236,7 @@ describe("PRE_ISSUE_STATUSES", () => {
 
 describe("blocksWalkIn", () => {
   it("refuses a door walk-in when the email already has an open or PAID order", () => {
-    for (const s of ["PENDING_RECEIPT", "PENDING_VALIDATION", "REJECTED", "PAID"] as const) {
+    for (const s of ["PENDING_RECEIPT", "PENDING_VALIDATION", "REJECTED", "PAID", "PENDING_CASH"] as const) {
       expect(blocksWalkIn(s)).toBe(true);
     }
   });
