@@ -130,7 +130,7 @@ export default async function DashboardPage() {
               {stats.recentEvents.map((event) => (
                 <Link
                   key={event.id}
-                  href={`/event/${event.slug}`}
+                  href={`/dashboard/events/${event.id}/details`}
                   className="flex items-center gap-4 rounded-lg border p-3 hover:bg-muted/50 transition-colors"
                 >
                   <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10">
