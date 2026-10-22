@@ -1,7 +1,7 @@
 /* eslint-disable @next/next/no-img-element -- logo comes from the Cloudinary CDN (sanitized) and has unknown dimensions */
 import Image from "next/image";
 import { notFound } from "next/navigation";
-import { Calendar, Clock, ImageDown, MapPin, Users } from "lucide-react";
+import { Calendar, Clock, MapPin, Users } from "lucide-react";
 import { getEventBySlug } from "@/app/dashboard/events/_actions/event.actions";
 import { Card } from "@/components/ui/card";
 import { formatEventDate } from "@/lib/datetime";
@@ -127,13 +127,6 @@ export default async function EventPage({
               )}
             </Card>
             <ShareEventButton title={event.title} />
-            <a
-              href={`/api/events/${encodeURIComponent(event.slug)}/flyer?download=1`}
-              download
-              className="inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-md border bg-background px-4 text-sm font-medium text-foreground shadow-xs"
-            >
-              <ImageDown className="size-4" /> Descargar flyer
-            </a>
           </div>
         </div>
       </main>
