@@ -1,6 +1,15 @@
 import { describe, expect, it } from "vitest";
 import { TICKET_STATUSES } from "./status";
-import { MAX_REASON_LENGTH, canApprove, canCancel, resendKindFor, validateRejectReason } from "./review";
+import { ORDER_STATUSES } from "./order";
+import {
+  MAX_REASON_LENGTH,
+  canApprove,
+  canCancel,
+  canMarkPaid,
+  manualPayNeedsRoom,
+  resendKindFor,
+  validateRejectReason,
+} from "./review";
 
 describe("canApprove", () => {
   it("only from PENDING_VALIDATION", () => {
@@ -45,5 +54,18 @@ describe("canCancel", () => {
     expect(canCancel("PENDING_VALIDATION")).toBe(true);
     expect(canCancel("CHECKED_IN")).toBe(false);
     expect(canCancel("CANCELLED")).toBe(false);
+  });
+});
+
+describe("canMarkPaid", () => {
+  it("allows every unpaid, open order and nothing final", () => {
+    const allowed = ORDER_STATUSES.filter(canMarkPaid);
+    expect(allowed).toEqual(["PENDING_RECEIPT", "PENDING_VALIDATION", "REJECTED", "PENDING_CASH"]);
+    expect(canMarkPaid("PAID")).toBe(false);
+    expect(canMarkPaid("CANCELLED")).toBe(false);
+  });
+
+  it("checks room only for orders that do not hold a spot yet", () => {
+    expect(ORDER_STATUSES.filter(manualPayNeedsRoom)).toEqual(["PENDING_RECEIPT", "REJECTED"]);
   });
 });

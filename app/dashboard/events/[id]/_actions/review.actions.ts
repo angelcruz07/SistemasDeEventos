@@ -15,7 +15,9 @@ import {
 } from "@/lib/server/ticket-email";
 import { PRE_ISSUE_STATUSES, canTransitionOrder, planIssuance } from "@/lib/ticketing/order";
 import { isCodeCollision } from "@/lib/ticketing/registration";
-import { canCancel, resendKindFor, validateRejectReason } from "@/lib/ticketing/review";
+import { countHeld } from "@/lib/server/held";
+import { hasRoom } from "@/lib/ticketing/capacity";
+import { canCancel, canMarkPaid, manualPayNeedsRoom, resendKindFor, validateRejectReason } from "@/lib/ticketing/review";
 import { createWithUniqueCode, generateDistinctCodes } from "@/lib/ticketing/short-code";
 
 export type ReviewResult = { success: true } | { success: false; error: string };
@@ -32,7 +34,7 @@ const TX_OPTIONS = { maxWait: 5000, timeout: 10000 };
  * Server actions are public endpoints: every action re-checks that the caller owns
  * the event AND that the order/ticket belongs to it. Status changes are conditional
  * updateMany calls, so a double click or two reviewers can only win once, and only the
- * winner sends email. Orders are never deleted: cancelling is a status change.
+ * winner sends email. Cancelling is a status change; only deleteOrder removes an order for good.
  */
 async function loadOrder(eventId: string, orderId: string) {
   const owned = await getOwnedEvent(eventId);
@@ -56,7 +58,100 @@ async function orderIdFor(eventId: string, id: string): Promise<string | null> {
 
 function done(eventId: string): ReviewResult {
   revalidatePath(`/dashboard/events/${eventId}/attendees`);
+  revalidatePath(`/dashboard/events/${eventId}/stats`);
   return { success: true };
+}
+
+type IssuedTicket = { id: string; name: string; email: string | null; code: string };
+type PayOutcome = { kind: "paid"; issued: IssuedTicket[] } | { kind: "full" } | null;
+
+/**
+ * Turns an unpaid order into PAID inside the event lock. Cash pre-registrations already have their
+ * tickets (and QR): they just flip to PAID. Any other order gets its tickets issued like an approval.
+ * Returns the newly issued tickets (they get an email), "full" when there is no room, or null when
+ * the order changed status meanwhile.
+ */
+async function payOrder(
+  event: { id: string; capacity: number | null },
+  order: NonNullable<Awaited<ReturnType<typeof loadOrder>>>["order"],
+): Promise<PayOutcome> {
+  const fromStatus = order.status;
+  return createWithUniqueCode(
+    () => generateDistinctCodes(order.quantity, randomInt).join(","),
+    (joined) =>
+      prisma.$transaction(async (tx): Promise<PayOutcome> => {
+        await lockEvent(tx, event.id);
+        // Orders that never held a spot must still fit (they would otherwise oversell the event).
+        if (manualPayNeedsRoom(fromStatus) && !hasRoom(await countHeld(tx, event.id), order.quantity, event.capacity)) {
+          return { kind: "full" };
+        }
+        const now = new Date();
+        const { count } = await tx.order.updateMany({
+          where: { id: order.id, eventId: event.id, status: fromStatus },
+          data: { status: "PAID", reviewedAt: now, paidAt: now, rejectionReason: null },
+        });
+        if (count !== 1) return null;
+
+        if (fromStatus === "PENDING_CASH") {
+          await tx.ticket.updateMany({
+            where: { orderId: order.id, status: "PENDING_CASH" },
+            data: { status: "PAID", reviewedAt: now },
+          });
+          return { kind: "paid", issued: [] }; // their QR was emailed at pre-registration
+        }
+
+        // Tickets older code already moved to PAID/CHECKED_IN count as issued (no duplicates, no
+        // second email); pre-issue ones are flipped; only the missing remainder is created.
+        const alreadyIssued = await tx.ticket.findMany({
+          where: { orderId: order.id, status: { in: ["PAID", "CHECKED_IN"] } },
+          select: { id: true },
+        });
+        const preIssue = { orderId: order.id, status: { in: [...PRE_ISSUE_STATUSES] } };
+        const plan = planIssuance(order.quantity, await tx.ticket.count({ where: preIssue }), alreadyIssued.length);
+        if (plan.flip > 0) {
+          await tx.ticket.updateMany({
+            where: preIssue,
+            data: { status: "PAID", reviewedAt: now, rejectionReason: null },
+          });
+        }
+        if (plan.create > 0) {
+          await tx.ticket.createMany({
+            data: joined
+              .split(",")
+              .slice(0, plan.create)
+              .map((code, i) => ({
+                eventId: event.id,
+                orderId: order.id,
+                seq: alreadyIssued.length + plan.flip + i + 1,
+                code,
+                name: order.name,
+                email: order.email,
+                answers: order.answers as Prisma.InputJsonValue,
+                status: "PAID" as const,
+                paymentMethod: order.paymentMethod,
+                amountCents: order.unitPriceCents,
+                currency: order.currency,
+                reviewedAt: now,
+              })),
+          });
+        }
+        const before = new Set(alreadyIssued.map((t) => t.id));
+        const paid = await tx.ticket.findMany({
+          where: { orderId: order.id, status: "PAID" },
+          orderBy: { seq: "asc" },
+          select: { id: true, name: true, email: true, code: true },
+        });
+        return { kind: "paid", issued: paid.filter((t) => !before.has(t.id)) }; // only new tickets get an email
+      }, TX_OPTIONS),
+    // Only a short-code clash is retried; the (eventId, email) unique cannot be fixed by a new code.
+    isCodeCollision,
+  );
+}
+
+function emailIssued(issued: IssuedTicket[], event: Parameters<typeof sendTicketEmails>[1]) {
+  // One batch for the whole order (design D9): sequential sends would risk the function timeout.
+  const recipients = issued.flatMap((t) => (t.email ? [{ id: t.id, name: t.name, email: t.email, code: t.code }] : []));
+  if (recipients.length > 0) after(() => sendTicketEmails(recipients, event));
 }
 
 export async function approveOrder(eventId: string, orderId: string): Promise<ReviewResult> {
@@ -66,73 +161,57 @@ export async function approveOrder(eventId: string, orderId: string): Promise<Re
     const { event, order } = loaded;
     if (order.status !== "PENDING_VALIDATION") return STALE;
 
-    // One batch of distinct codes per attempt; a collision (P2002) retries the whole transaction.
-    const issued = await createWithUniqueCode(
-      () => generateDistinctCodes(order.quantity, randomInt).join(","),
-      (joined) =>
-        prisma.$transaction(async (tx) => {
-          await lockEvent(tx, event.id);
-          const now = new Date();
-          const { count } = await tx.order.updateMany({
-            where: { id: order.id, eventId: event.id, status: "PENDING_VALIDATION" },
-            data: { status: "PAID", reviewedAt: now, paidAt: now, rejectionReason: null },
-          });
-          if (count !== 1) return null;
-
-          // Tickets older code already moved to PAID/CHECKED_IN count as issued (no duplicates, no
-          // second email); pre-issue ones are flipped; only the missing remainder is created.
-          const alreadyIssued = await tx.ticket.findMany({
-            where: { orderId: order.id, status: { in: ["PAID", "CHECKED_IN"] } },
-            select: { id: true },
-          });
-          const preIssue = { orderId: order.id, status: { in: [...PRE_ISSUE_STATUSES] } };
-          const plan = planIssuance(order.quantity, await tx.ticket.count({ where: preIssue }), alreadyIssued.length);
-          if (plan.flip > 0) {
-            await tx.ticket.updateMany({
-              where: preIssue,
-              data: { status: "PAID", reviewedAt: now, rejectionReason: null },
-            });
-          }
-          if (plan.create > 0) {
-            await tx.ticket.createMany({
-              data: joined
-                .split(",")
-                .slice(0, plan.create)
-                .map((code, i) => ({
-                  eventId: event.id,
-                  orderId: order.id,
-                  seq: alreadyIssued.length + plan.flip + i + 1,
-                  code,
-                  name: order.name,
-                  email: order.email,
-                  answers: order.answers as Prisma.InputJsonValue,
-                  status: "PAID" as const,
-                  paymentMethod: order.paymentMethod,
-                  amountCents: order.unitPriceCents,
-                  currency: order.currency,
-                  reviewedAt: now,
-                })),
-            });
-          }
-          const before = new Set(alreadyIssued.map((t) => t.id));
-          const paid = await tx.ticket.findMany({
-            where: { orderId: order.id, status: "PAID" },
-            orderBy: { seq: "asc" },
-            select: { id: true, name: true, email: true, code: true },
-          });
-          return paid.filter((t) => !before.has(t.id)); // only newly issued tickets get an email
-        }, TX_OPTIONS),
-      // Only a short-code clash is retried; the (eventId, email) unique cannot be fixed by a new code.
-      isCodeCollision,
-    );
-    if (!issued) return STALE;
-
-    // One batch for the whole order (design D9): sequential sends would risk the function timeout.
-    const recipients = issued.flatMap((t) => (t.email ? [{ id: t.id, name: t.name, email: t.email, code: t.code }] : []));
-    if (recipients.length > 0) after(() => sendTicketEmails(recipients, event));
+    const outcome = await payOrder(event, order);
+    if (!outcome || outcome.kind !== "paid") return STALE;
+    emailIssued(outcome.issued, event);
     return done(event.id);
   } catch (error) {
     console.error("approveOrder failed:", error instanceof Error ? error.name : "unknown");
+    return GENERIC;
+  }
+}
+
+/**
+ * The "Pagado" checkbox: the organizer confirms money received outside the receipt flow.
+ * Same effect as an approval (tickets issued and emailed); a cash pre-registration just becomes
+ * PAID and is counted in the cash-up under cash. One-way: un-paying is done by cancelling.
+ */
+export async function markOrderPaid(eventId: string, orderId: string): Promise<ReviewResult> {
+  try {
+    const loaded = await loadOrder(eventId, orderId);
+    if (!loaded) return NOT_FOUND;
+    const { event, order } = loaded;
+    if (!canMarkPaid(order.status)) {
+      return { success: false, error: "Esta compra ya está pagada o cancelada." };
+    }
+
+    const outcome = await payOrder(event, order);
+    if (!outcome) return STALE;
+    if (outcome.kind === "full") {
+      return { success: false, error: "No hay lugares suficientes para emitir los boletos de esta compra." };
+    }
+    emailIssued(outcome.issued, event);
+    return done(event.id);
+  } catch (error) {
+    console.error("markOrderPaid failed:", error instanceof Error ? error.name : "unknown");
+    return GENERIC;
+  }
+}
+
+/**
+ * Permanently removes an order with its tickets and receipts (cascade). Unlike cancelling, the
+ * order disappears from the list, the stats and the cash-up, and its spots are freed.
+ */
+export async function deleteOrder(eventId: string, orderId: string): Promise<ReviewResult> {
+  try {
+    const owned = await getOwnedEvent(eventId);
+    if (!owned) return NOT_FOUND;
+    if (typeof orderId !== "string" || orderId.length === 0 || orderId.length > 100) return NOT_FOUND;
+    const { count } = await prisma.order.deleteMany({ where: { id: orderId, eventId: owned.event.id } });
+    if (count !== 1) return { success: false, error: "La compra ya no existe. Actualiza la lista." };
+    return done(owned.event.id);
+  } catch (error) {
+    console.error("deleteOrder failed:", error instanceof Error ? error.name : "unknown");
     return GENERIC;
   }
 }

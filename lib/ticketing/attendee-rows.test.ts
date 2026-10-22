@@ -101,4 +101,11 @@ describe("toOrderRow", () => {
   it("cannot resend without an email", () => {
     expect(toOrderRow({ ...base, email: null }).canResend).toBe(false);
   });
+
+  it("lets the organizer tick paid only on unpaid, open orders", () => {
+    expect(toOrderRow({ ...base, status: "PENDING_CASH", paidAt: null }).canMarkPaid).toBe(true);
+    expect(toOrderRow({ ...base, status: "PENDING_RECEIPT", paidAt: null }).canMarkPaid).toBe(true);
+    expect(toOrderRow(base).canMarkPaid).toBe(false);
+    expect(toOrderRow({ ...base, status: "CANCELLED", paidAt: null }).canMarkPaid).toBe(false);
+  });
 });

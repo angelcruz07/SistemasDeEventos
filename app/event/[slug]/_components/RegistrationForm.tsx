@@ -262,7 +262,7 @@ export function RegistrationForm({
       )}
       {paymentMethods.length === 1 && paymentMethods[0] === "CASH" && (
         <p className="rounded-md border p-3 text-sm text-muted-foreground">
-          <span className="font-medium text-foreground">Pago en efectivo en la entrada.</span> {METHOD_COPY.CASH.hint}
+          <span className="font-medium text-foreground">Recibes tu pre-registro en QR en tu correo.</span>
         </p>
       )}
 

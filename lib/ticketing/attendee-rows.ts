@@ -2,7 +2,7 @@ import type { OrderStatus, PaymentMethod, TicketStatus } from "@/app/generated/p
 import { formatMx } from "@/lib/datetime";
 import { formatMxn } from "./money";
 import { PRE_ISSUE_STATUSES, canTransitionOrder } from "./order";
-import { canApprove, canCancel, resendKindFor } from "./review";
+import { canApprove, canCancel, canMarkPaid, resendKindFor } from "./review";
 import { formatShortCode } from "./short-code";
 
 export interface OrderRowTicketInput {
@@ -59,6 +59,8 @@ export interface OrderRow {
   canReview: boolean;
   canCancel: boolean;
   canResend: boolean;
+  /** The organizer can tick "Pagado" by hand. */
+  canMarkPaid: boolean;
 }
 
 /**
@@ -120,5 +122,6 @@ export function toOrderRow(order: OrderRowInput): OrderRow {
     canReview: canApprove(order.status),
     canCancel: canTransitionOrder(order.status, "CANCELLED"),
     canResend: resendKindFor(order.status) !== null && order.email !== null,
+    canMarkPaid: canMarkPaid(order.status),
   };
 }
