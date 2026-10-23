@@ -11,6 +11,7 @@ import {
   parseAttendeeFilter,
 } from "@/lib/ticketing/attendees";
 import { toOrderRow } from "@/lib/ticketing/attendee-rows";
+import { parseFormSchema } from "@/lib/ticketing/form-schema";
 import { computeCashUp } from "@/lib/ticketing/cash-up";
 import { ORDER_STATUSES } from "@/lib/ticketing/order";
 import { CashUpSummary } from "../_components/CashUpSummary";
@@ -76,7 +77,8 @@ export default async function AttendeesPage({
   ]);
 
   const counts = countByStatus(groups);
-  const rows = orders.map(toOrderRow);
+  const formFields = parseFormSchema(event.formSchema)?.fields ?? [];
+  const rows = orders.map((order) => toOrderRow(order, formFields));
   const cashUp = computeCashUp(paidOrders, issuedTickets);
 
   const exportQs = new URLSearchParams();

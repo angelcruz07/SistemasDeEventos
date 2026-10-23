@@ -108,4 +108,28 @@ describe("toOrderRow", () => {
     expect(toOrderRow(base).canMarkPaid).toBe(false);
     expect(toOrderRow({ ...base, status: "CANCELLED", paidAt: null }).canMarkPaid).toBe(false);
   });
+
+  it("orders answers like the form and uses the current labels", () => {
+    const row = toOrderRow(
+      {
+        ...base,
+        answers: {
+          zeta: { label: "Old label", value: "1" },
+          alfa: { label: "Alfa", value: true },
+          gone: { label: "Pregunta eliminada", value: "x" },
+          vacio: { label: "Vacío", value: "" },
+        },
+      },
+      [
+        { id: "zeta", label: "Zeta" },
+        { id: "alfa", label: "Alfa" },
+        { id: "vacio", label: "Vacío" },
+      ],
+    );
+    expect(row.answers).toEqual([
+      { label: "Zeta", value: "1" },
+      { label: "Alfa", value: "Sí" },
+      { label: "Pregunta eliminada", value: "x" },
+    ]);
+  });
 });

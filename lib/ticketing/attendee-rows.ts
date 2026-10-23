@@ -83,14 +83,32 @@ function describeAnswer(value: unknown): string {
   return value === null || value === undefined ? "" : String(value);
 }
 
-function toAnswerEntries(answers: unknown): Array<{ label: string; value: string }> {
+/**
+ * Answers as label/value pairs. With the form fields they follow the form's order and current
+ * labels (stored JSON keys come back in arbitrary order); answers to fields no longer in the
+ * form keep their stored label and go last.
+ */
+function toAnswerEntries(
+  answers: unknown,
+  fields: ReadonlyArray<{ id: string; label: string }> = [],
+): Array<{ label: string; value: string }> {
   if (typeof answers !== "object" || answers === null) return [];
-  return Object.values(answers as Record<string, { label?: unknown; value?: unknown }>)
-    .filter((a) => a && typeof a === "object" && typeof a.label === "string")
-    .map((a) => ({ label: a.label as string, value: describeAnswer(a.value) }));
+  const position = new Map(fields.map((f, i) => [f.id, i]));
+  return Object.entries(answers as Record<string, { label?: unknown; value?: unknown }>)
+    .filter(([, a]) => a && typeof a === "object" && typeof a.label === "string")
+    .sort(([a], [b]) => (position.get(a) ?? Infinity) - (position.get(b) ?? Infinity))
+    .map(([id, a]) => {
+      const i = position.get(id);
+      return { label: i === undefined ? (a.label as string) : fields[i].label, value: describeAnswer(a.value) };
+    })
+    .filter((a) => a.value !== "");
 }
 
-export function toOrderRow(order: OrderRowInput): OrderRow {
+export function toOrderRow(
+  order: OrderRowInput,
+  /** The event's form fields, to order and label the answers like the form. */
+  fields: ReadonlyArray<{ id: string; label: string }> = [],
+): OrderRow {
   const latest = [...order.receipts].sort((a, b) => b.uploadedAt.getTime() - a.uploadedAt.getTime())[0];
   const tickets = issuedTickets(order.tickets, order)
     .sort((a, b) => a.seq - b.seq)
@@ -115,7 +133,7 @@ export function toOrderRow(order: OrderRowInput): OrderRow {
     paymentMethod: order.paymentMethod,
     createdAt: formatMx(order.createdAt),
     paid: order.paidAt !== null,
-    answers: toAnswerEntries(order.answers),
+    answers: toAnswerEntries(order.answers, fields),
     rejectionReason: order.rejectionReason,
     receipt: latest ? { id: latest.id, mimeType: latest.mimeType, purged: latest.purgedAt !== null } : null,
     tickets,

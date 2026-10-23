@@ -266,7 +266,7 @@ export function AttendeesList({ eventId, rows }: { eventId: string; rows: OrderR
                     <Trash2 />
                     <span className="sm:sr-only">Borrar</span>
                   </Button>
-                  {row.tickets.length > 0 && (
+                  {(row.tickets.length > 0 || row.answers.length > 0) && (
                     <Button
                       size="sm"
                       variant="ghost"
@@ -274,49 +274,76 @@ export function AttendeesList({ eventId, rows }: { eventId: string; rows: OrderR
                       aria-controls={panelId}
                       onClick={() => toggle(row.id)}
                     >
-                      {open ? "Ocultar boletos" : "Ver boletos"}
+                      {row.tickets.length > 0
+                        ? open
+                          ? "Ocultar boletos"
+                          : "Ver boletos"
+                        : open
+                          ? "Ocultar respuestas"
+                          : "Ver respuestas"}
                     </Button>
                   )}
                 </div>
               </div>
 
               {open && (
-                <ul id={panelId} className="mt-3 divide-y rounded-md border bg-background">
-                  {row.tickets.map((ticket) => (
-                    <li
-                      key={ticket.id}
-                      className="flex flex-col gap-2 p-2 text-sm sm:flex-row sm:items-center sm:justify-between"
-                    >
-                      <div className="min-w-0">
-                        <p>
-                          <span className="font-mono">{ticket.code}</span>{" "}
-                          <span className="text-muted-foreground">· {ticket.position}</span>
-                        </p>
-                        {ticket.checkedInAt && (
-                          <p className="text-xs text-muted-foreground">
-                            Ingresó {ticket.checkedInAt}
-                            {ticket.checkedInBy ? ` · ${ticket.checkedInBy}` : ""}
-                          </p>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${BADGE[ticket.status]}`}>
-                          {STATUS_LABELS[ticket.status]}
-                        </span>
-                        {ticket.canCancel && (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            disabled={busy === ticket.id}
-                            onClick={() => ask(cancelTicketConfirm(eventId, row, ticket))}
-                          >
-                            Cancelar boleto
-                          </Button>
-                        )}
-                      </div>
-                    </li>
-                  ))}
-                </ul>
+                <div id={panelId} className="mt-3 space-y-3">
+                  <section aria-label={`Respuestas de ${row.name}`} className="rounded-md border bg-background p-3">
+                    <h3 className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                      Respuestas del formulario
+                    </h3>
+                    {row.answers.length === 0 ? (
+                      <p className="text-sm text-muted-foreground">Sin respuestas registradas.</p>
+                    ) : (
+                      <dl className="grid gap-x-6 gap-y-2.5 text-sm sm:grid-cols-2">
+                        {row.answers.map((a) => (
+                          <div key={a.label} className="min-w-0">
+                            <dt className="text-xs text-muted-foreground">{a.label}</dt>
+                            <dd className="break-words whitespace-pre-line">{a.value}</dd>
+                          </div>
+                        ))}
+                      </dl>
+                    )}
+                  </section>
+                  {row.tickets.length > 0 && (
+                    <ul aria-label="Boletos" className="divide-y rounded-md border bg-background">
+                      {row.tickets.map((ticket) => (
+                        <li
+                          key={ticket.id}
+                          className="flex flex-col gap-2 p-2 text-sm sm:flex-row sm:items-center sm:justify-between"
+                        >
+                          <div className="min-w-0">
+                            <p>
+                              <span className="font-mono">{ticket.code}</span>{" "}
+                              <span className="text-muted-foreground">· {ticket.position}</span>
+                            </p>
+                            {ticket.checkedInAt && (
+                              <p className="text-xs text-muted-foreground">
+                                Ingresó {ticket.checkedInAt}
+                                {ticket.checkedInBy ? ` · ${ticket.checkedInBy}` : ""}
+                              </p>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${BADGE[ticket.status]}`}>
+                              {STATUS_LABELS[ticket.status]}
+                            </span>
+                            {ticket.canCancel && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                disabled={busy === ticket.id}
+                                onClick={() => ask(cancelTicketConfirm(eventId, row, ticket))}
+                              >
+                                Cancelar boleto
+                              </Button>
+                            )}
+                          </div>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
               )}
             </li>
           );
